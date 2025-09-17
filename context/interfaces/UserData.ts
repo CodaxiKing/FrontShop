@@ -1,0 +1,29 @@
+export interface UserData {
+  codigo: string;
+  representanteId: string;
+  representanteCreateId: string;
+  nome: string;
+  nomeReduzido: string;
+  endereco: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cep: string;
+  telefone: string;
+  fax: string;
+  cpfCnpj: string;
+  email: string;
+  gerente: string;
+  supervisor: string;
+  diretor: string;
+  codigoCentroCusto: string;
+  codigoLoja: string;
+  cargo: string;
+  pais: string;
+  telefoneCelular: string;
+  filialCodigo: string;
+  filialSigla: string;
+  filialDescricao: string;
+  filialPercentualRepasseFixo: number;
+  filialValorRepasseFixo: number;
+}

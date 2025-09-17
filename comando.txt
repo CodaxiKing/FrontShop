@@ -1,0 +1,46 @@
+# Limpeza completa
+rm -rf node_modules
+rm -rf android
+rm -rf .expo
+rm -rf .expo-shared
+rm -rf dist
+rm -rf web-build
+rm -rf .turbo
+rm -rf .cache
+rm -f package-lock.json
+watchman watch-del-all
+
+# Limpar cache
+npm cache clean --force
+
+# 🚨 Etapa que faltou na resposta anterior
+npm install  # ← Esta é fundamental
+
+npx expo start --clear
+
+
+
+
+# Iniciar com cache limpo
+npx expo start --clear
+
+
+# =============================================
+# eas build --platform android --profile refactory
+# eas build --platform android --profile preview
+# eas build --platform android --profile production
+
+
+npx expo start --dev-client
+
+npx expo start --dev-client -c
+
+npx expo run:android
+
+
+
+
+# npm install -g eas-cli
+# npx expo install expo-dev-clienta
+
+
