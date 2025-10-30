@@ -29,6 +29,7 @@ interface ProdutoSnapshot {
   imagem?: string;
   descricaoSubGrupo: string;
   dataPrevistaPA?: string;
+  tipo?: string;
 }
 
 interface SelectedClient {
@@ -95,7 +96,8 @@ interface ProdutoQuantidadeContextValue {
     selectedTabelaPreco?: TabelaPrecoLike,
     selectedClient?: SelectedClient,
     descricaoSubGrupo?: string,
-    dataPrevistaPA?: string
+    dataPrevistaPA?: string,
+    tipo?: string
   ) => Promise<void>;
   clear: () => void;
 }
@@ -247,7 +249,8 @@ export const ProdutoQuantidadeProvider: React.FC<{
             precoUnitarioComIPI:
               v.snapshot?.precoUnitarioComIPI ?? v.snapshot?.precoUnitario ?? 0,
             imagem: v.snapshot?.imagem,
-            tipo: "R",
+            tipo: v.snapshot?.tipo ?? "R",
+            // tipo: "R",
             descricaoSubGrupo: v.snapshot?.descricaoSubGrupo ?? "",
             dataPrevistaPA: v.snapshot?.dataPrevistaPA,
           }));
@@ -355,7 +358,8 @@ export const ProdutoQuantidadeProvider: React.FC<{
                 produtosAtuais[i]?.nomeEcommerce ??
                 "",
               imagem: snapshot?.imagem ?? produtosAtuais[i]?.imagem,
-              tipo: "R",
+              tipo: snapshot?.tipo ?? "R",
+              // tipo: "R",
               descricaoSubGrupo:
                 snapshot?.descricaoSubGrupo ??
                 produtosAtuais[i]?.descricaoSubGrupo ??
@@ -373,7 +377,8 @@ export const ProdutoQuantidadeProvider: React.FC<{
               precoUnitarioComIPI:
                 snapshot?.precoUnitarioComIPI ?? snapshot?.precoUnitario ?? 0,
               imagem: snapshot?.imagem,
-              tipo: "R",
+              tipo: snapshot?.tipo ?? "R",
+              // tipo: "R",
               descricaoSubGrupo: snapshot?.descricaoSubGrupo,
               dataPrevistaPA: snapshot?.dataPrevistaPA,
             });
@@ -541,7 +546,8 @@ export const ProdutoQuantidadeProvider: React.FC<{
         selectedTabelaPreco,
         selectedClient,
         descricaoSubGrupo,
-        dataPrevistaPA
+        dataPrevistaPA,
+        tipo
       ) => {
         rememberContext(
           cpfCnpj,
@@ -563,6 +569,7 @@ export const ProdutoQuantidadeProvider: React.FC<{
           imagem,
           descricaoSubGrupo: descricaoSubGrupo ?? "",
           dataPrevistaPA,
+          tipo,
         });
         scheduleFlush();
       },

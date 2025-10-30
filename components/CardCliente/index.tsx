@@ -22,6 +22,7 @@ import { useOrientation } from "@/context/OrientationContext";
 import * as SQLite from "expo-sqlite";
 import SelecaoTabelaProdutoModal from "@/modal/ModalSelecaoTabelaProduto";
 import { AntDesign } from "@expo/vector-icons";
+import { PedidoCopiaProvider } from "@/context/PedidoCopiaContext";
 
 interface CardClienteProps {
   cliente: {
@@ -39,7 +40,6 @@ interface CardClienteProps {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type TopRouteProp = RouteProp<RootStackParamList, keyof RootStackParamList>;
 
-
 export const CardCliente: React.FC<CardClienteProps> = ({
   cliente,
   isSelected,
@@ -51,7 +51,7 @@ export const CardCliente: React.FC<CardClienteProps> = ({
   const route = useRoute<TopRouteProp>();
   const { isModoPaisagem, width } = useOrientation();
 
-  const isCopiarPedido = route.name === "CopiarPedido";
+  // console.log("Parametros da Rota(CardCliente):", route.params);
 
   if (!cliente) {
     console.warn("Cliente não foi fornecido.");
@@ -67,28 +67,6 @@ export const CardCliente: React.FC<CardClienteProps> = ({
   return (
     <>
       <CardContainer isModoPaisagem={isModoPaisagem}>
-        {isCopiarPedido && (
-          <TouchableOpacity
-            // onPress={() => console.log("Selecionado")}
-            onPress={onSelect}
-            style={{
-              zIndex: 10,
-              position: "absolute",
-              top: 10,
-              right: 10,
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              backgroundColor: isSelected ? "#34C759" : "#ffffff",
-              borderWidth: 2,
-              borderColor: isSelected ? "#34C759" : "#c0c0c0",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            {isSelected && <AntDesign name="check" size={22} color="#ffffff" />}
-          </TouchableOpacity>
-        )}
         <InfoRow style={{ marginBottom: 5 }}>
           <View style={{ width: "50%" }}>
             <Label isModoPaisagem={isModoPaisagem} width={width}>
@@ -131,11 +109,10 @@ export const CardCliente: React.FC<CardClienteProps> = ({
         </View>
         <Separator />
         <IconContainer>
-          {!isCopiarPedido && (
-            <IconButton>
-              <FontAwesome name="thumbs-up" size={34} color="#000" />
-            </IconButton>
-          )}
+          <IconButton>
+            <FontAwesome name="thumbs-up" size={34} color="#000" />
+          </IconButton>
+
           {/* <IconButton
             onPress={() =>
               navigation.navigate("DetalhesDoCliente", {
@@ -145,11 +122,9 @@ export const CardCliente: React.FC<CardClienteProps> = ({
           >
             <MaterialIcons name="find-in-page" size={34} color="#000" />
           </IconButton> */}
-          {!isCopiarPedido && (
-            <IconButton onPress={handleSelectTabelaPreco}>
-              <Entypo name="shop" size={34} color="black" />
-            </IconButton>
-          )}
+          <IconButton onPress={handleSelectTabelaPreco}>
+            <Entypo name="shop" size={34} color="black" />
+          </IconButton>
         </IconContainer>
       </CardContainer>
 

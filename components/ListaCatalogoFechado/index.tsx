@@ -1,7 +1,7 @@
 // src/components/ListaCatalogoFechado/index.tsx
 import React, { useMemo, useEffect, useState } from "react";
 import { View } from "react-native";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 
 import { useListaProdutos } from "@/hooks/useListaProdutos";
 import { useClientInfoContext } from "@/context/ClientInfoContext";
@@ -20,45 +20,59 @@ import { FormSearch } from "./style";
 import LegendaSinalizadores from "./LegendaSinalizadores";
 
 // DEV tools (apenas UI e logs em modo dev)
-import { useCatalogoDevTools } from "@/utils/dev/catalogoDevTools";
 import { eventBus } from "@/core/eventBus";
 import { FiltroService, FILTERS_EVENTS } from "@/services/FiltroService";
 import { fetchIconToCodesMap } from "@/utils/filters/sinalizadorIconMap";
-import { useNavigation } from "@react-navigation/native";
+import { usePedidoCopia } from "@/context/PedidoCopiaContext";
+import { triggerAutoCreateCart } from "@/services/pedidoCopiaService";
 
-type CatalogoFechadoRouteProp = RouteProp<RootStackParamList, "CatalogoFechado">;
+type CatalogoFechadoRouteProp = RouteProp<
+  RootStackParamList,
+  "CatalogoFechado"
+>;
 
 const ListaCatalogoFechado: React.FC = () => {
   const route = useRoute<CatalogoFechadoRouteProp>();
+  const navigation = useNavigation();
   const { selectedTabelaPrecoContext, clienteIdContext, selectedClientContext } = useClientInfoContext();
   const { userData } = React.useContext(AuthContext);
   const representanteId = userData?.representanteId || "";
   const cpfCnpj = userData?.cpfCnpj || "";
   const codigoCliente = selectedClientContext?.codigoCliente || "";
-  const catalogOpen = route.params?.catalogOpen as boolean  || false;
+  const catalogOpen = (route.params?.catalogOpen as boolean) || false;
+
+  const processingRef = React.createRef<{ current: boolean }>() as any;
 
   const { numColumns } = useOrientation();
-  const { preloadQuantidades } = useProdutoQuantidade();
+  const { preloadQuantidades, setQuantidade } = useProdutoQuantidade();
 
-  let selectedTabelaPreco = useMemo(() => {
-    if (catalogOpen) {
-      return "999999";
-    }
+  // resolve selectedTabelaPreco (mantém a regra do "catalogOpen" -> 999999)
+  const selectedTabelaPreco = useMemo(() => {
+    if (catalogOpen) return "999999";
     const ctx = selectedTabelaPrecoContext as any;
     const param = route.params?.selectedTabelaPreco as any;
-    return (
+
+    const resolved =
       (ctx && typeof ctx === "object" ? String(ctx.value) : ctx ? String(ctx) : "") ||
       (param && typeof param === "object" ? String(param.value) : param ? String(param) : "") ||
-      "999999"
-    );
-  }, [selectedTabelaPrecoContext, route.params?.selectedTabelaPreco]);
+      "999999";
 
-  
+    if (__DEV__) {
+      console.debug(
+        "[CatalogoFechado] selectedTabelaPreco =",
+        resolved,
+        "(catalogOpen=",
+        catalogOpen,
+        ")"
+      );
+    }
+    return resolved;
+  }, [catalogOpen, selectedTabelaPrecoContext, route.params?.selectedTabelaPreco]);
+
   const [termoBusca, setTermoBusca] = React.useState("");
   const termoBuscaNorm = useMemo(() => termoBusca.trim(), [termoBusca]);
 
-  // Consome params de rota vindos do Sidebar (scanner de código de barras e busca geral)
-  //const navigation = useNavigation();
+  // Consome params vindos do Sidebar (scanner / busca geral)
   useEffect(() => {
     const p: any = route.params || {};
     const tipo = p.filtroTipo;
@@ -70,12 +84,14 @@ const ListaCatalogoFechado: React.FC = () => {
     } else if (tipo === "buscaGeral") {
       const nome = String(p.filtroNome ?? "").trim();
       if (nome) setTermoBusca(nome);
-   }
-    // Para evitar reprocesso ao voltar de telas, pode limpar os params: 
+    }
+    // Para evitar reprocesso ao voltar de telas, pode limpar os params:
     // navigation.setParams({ filtroTipo: undefined, filtroCodigo: undefined, filtroNome: undefined });
-  }, [route.params?.filtroTipo, route.params?.filtroCodigo, route.params?.filtroNome]);
-  
-  
+  }, [
+    route.params?.filtroTipo,
+    route.params?.filtroCodigo,
+    route.params?.filtroNome,
+  ]);
 
   // Filtro avançado vindo do drawer via eventBus
   const { advancedFilter } = useAdvancedFilterApplied(selectedTabelaPreco);
@@ -86,29 +102,77 @@ const ListaCatalogoFechado: React.FC = () => {
     advancedFilter,
   });
 
+  const {
+    stagedCartItems,
+    shouldAutoCreateCart,
+    consumeAutoCreateFlag,
+    targetClient,
+    selectedTabela,
+  } = usePedidoCopia();
+
+  useEffect(() => {
+    // deps mínimos: só a flag — os demais valores são “snapshotados” no service
+    if (!shouldAutoCreateCart) return;
+
+    triggerAutoCreateCart({
+      shouldAutoCreateCart,
+      consumeAutoCreateFlag,
+      stagedCartItems,
+      client: targetClient as any,
+      representanteId,
+      selectedTabela,
+      setQuantidade,
+      processingRef, // opcional, mas recomendado
+    }).catch(() => {
+      // trate erros silenciosamente se quiser
+    });
+  }, [shouldAutoCreateCart]);
+
   //console.warn(`SelectedTabelaPreco ${route.params?.selectedTabelaPreco}`)
   //console.warn(`Produtos Total ${produtos.length}`)
 
-  const [iconToCodesMap, setIconToCodesMap] =  useState<Partial<Record<any, string[]>>>({});
+  const [iconToCodesMap, setIconToCodesMap] = useState<
+    Partial<Record<any, string[]>>
+  >({});
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const map = await fetchIconToCodesMap();
-        if (alive) setIconToCodesMap(map);
+        if (alive && map) {
+          setIconToCodesMap(map);
+        } else {
+          setIconToCodesMap(undefined); // deixa a Legenda cair no fallback canônico
+        }
       } catch (e) {
-        // silencioso
+        if (__DEV__) {
+          console.warn("[Legenda] fetchIconToCodesMap falhou; a Legenda usará fallback canônico.", e);
+        }
+        setIconToCodesMap(undefined); // evita Object.keys em {}
       }
     })();
-    return () => { alive = false; };
-  }, []);  
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  // Pré-carrega quantidades (uma vez por abertura / troca de cliente/rep)
+  // Pré-carrega quantidades
   useEffect(() => {
     if (!cpfCnpj || !clienteIdContext || !representanteId) return;
-    preloadQuantidades(String(cpfCnpj), String(clienteIdContext), String(representanteId), String(codigoCliente ?? ""));
-  }, [cpfCnpj, clienteIdContext, representanteId, codigoCliente, preloadQuantidades]);
+    preloadQuantidades(
+      String(cpfCnpj),
+      String(clienteIdContext),
+      String(representanteId),
+      String(codigoCliente ?? "")
+    );
+  }, [
+    cpfCnpj,
+    clienteIdContext,
+    representanteId,
+    codigoCliente,
+    preloadQuantidades,
+  ]);
 
   // Cache "já comprou" por cliente (TEMP)
   useEffect(() => {
@@ -128,7 +192,12 @@ const ListaCatalogoFechado: React.FC = () => {
     [produtos]
   );
 
-  const { isFavorite, toggleFavorite, favoritesMap, favoritesVersion = 0 } = useFavoritos(produtoIds, {
+  const {
+    isFavorite,
+    toggleFavorite,
+    favoritesMap,
+    favoritesVersion = 0,
+  } = useFavoritos(produtoIds, {
     cpfCnpj: String(cpfCnpj),
     clienteId: String(clienteIdContext ?? ""),
     representanteId: String(representanteId ?? ""),
@@ -144,27 +213,44 @@ const ListaCatalogoFechado: React.FC = () => {
 
   // handler: tocar no título “Legendas:” -> limpar filtros aplicados
   const handleLegendReset = React.useCallback(() => {
+    if (__DEV__) console.debug("[Legenda] Reset solicitado (FILTERS_EVENTS.CLEARED)");
     eventBus.emit(FILTERS_EVENTS.CLEARED);
   }, []);
 
   // handler: tocar num ícone de legenda -> filtrar pelos códigos mapeados
   const handleLegendFilter = React.useCallback(
     (codes: string[]) => {
+      const effectiveCodes = Array.isArray(codes) && codes.length > 0 ? codes : [];
+
+      if (__DEV__) {
+        console.debug("[Legenda] Clique em ícone -> codes=", codes, "effective=", effectiveCodes);
+      }
+
       const compiled = FiltroService.compile(
-        { sinalizadores: { include: codes, exclude: [] } },
+        { sinalizadores: { include: effectiveCodes, exclude: [] } },
         {
           tabelaPreco: selectedTabelaPreco,
-          codigoCliente: String(codigoCliente ?? ""),   // para "já comprou"
-          cpfCnpj: String(cpfCnpj ?? ""),               // para "favorito"
-          clienteId: String(clienteIdContext ?? ""),    // para "favorito"
-          representanteId: String(representanteId ?? "") // para "favorito"
+          codigoCliente: String(codigoCliente ?? ""), // para "já comprou"
+          cpfCnpj: String(cpfCnpj ?? ""), // para "favorito"
+          clienteId: String(clienteIdContext ?? ""), // para "favorito"
+          representanteId: String(representanteId ?? ""), // para "favorito"
         }
       );
+
+      if (__DEV__) {
+        console.warn("[Legenda] compiled.whereSql =", compiled?.whereSql);
+      }
+
       eventBus.emit(FILTERS_EVENTS.APPLIED, compiled);
     },
-    [selectedTabelaPreco, codigoCliente, cpfCnpj, clienteIdContext, representanteId]
+    [
+      selectedTabelaPreco,
+      codigoCliente,
+      cpfCnpj,
+      clienteIdContext,
+      representanteId,
+    ]
   );
-
 
   // // DEV tools (apenas em desenvolvimento)
   // const { DevButtons } = useCatalogoDevTools({
@@ -179,22 +265,21 @@ const ListaCatalogoFechado: React.FC = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <FormSearch>      
-      <FiltroBusca onChangeSearch={setTermoBusca} value={termoBusca} />
-    </FormSearch>
+      <FormSearch>
+        <FiltroBusca onChangeSearch={setTermoBusca} value={termoBusca} />
+      </FormSearch>
 
-    {/* Legenda dinâmica */}
-    <LegendaSinalizadores
-      forceAll
-      produtos={produtos}
-      iconToCodesMap={iconToCodesMap}
-      onPressIcon={handleLegendFilter}
-      onReset={handleLegendReset}
-    />
+      {/* Legenda dinâmica */}
+      <LegendaSinalizadores
+        forceAll
+        produtos={produtos}
+        iconToCodesMap={iconToCodesMap}
+        onPressIcon={handleLegendFilter}
+        onReset={handleLegendReset}
+      />
 
-      
-     {/* {__DEV__ && <DevButtons />}        */}
-      
+      {/* {__DEV__ && <DevButtons />}        */}
+
       <ListaProdutos
         catalogOpen={catalogOpen}
         representanteId={representanteId}

@@ -72,8 +72,6 @@ const ModalParcialCarrinho: React.FC<ModalTabelaProps> = ({
         representanteId || "",
       ]);
 
-      // console.log("pedidoResult", pedidoResult);
-
       if (pedidoResult.length === 0) {
         throw new Error("Pedido não encontrado");
       }
@@ -191,7 +189,7 @@ const ModalParcialCarrinho: React.FC<ModalTabelaProps> = ({
               precoUnitario?: number;
             }) || {};
 
-          const tipo = produto.tipo || "R";
+          const tipo = produto.tipo;
           const quantidade =
             typeof produto.quantidade === "number" ? produto.quantidade : 0;
 

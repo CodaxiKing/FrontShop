@@ -1,5 +1,11 @@
 // components/CardProdutoCatalogo/index.tsx
-import React, { useMemo, useState, useCallback } from "react";
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+  useContext,
+} from "react";
 import { getProdutoData, FavoritoDeps } from "./mapper/getProdutoViewData";
 import { useCardProdutoController } from "./useCardProdutoController";
 import CardProdutoCatalogoView from "./CardProdutoCatalogoView";
@@ -8,6 +14,9 @@ import { useOrientation } from "@/context/OrientationContext";
 import { ModalImageZoom } from "@/modal/ModalImageZoom";
 import { useClientInfoContext } from "@/context/ClientInfoContext";
 import { ImageStorage } from "@/core/infra/ImageStorage"; // [IMAGENS][PATCH]
+import { usePedidoCopia } from "@/context/PedidoCopiaContext";
+import { useProdutoQuantidade } from "@/context/ProdutoQuantidadeContext";
+import AuthContext from "@/context/AuthContext";
 
 interface Props {
   produto: CatalogoItem;
@@ -29,6 +38,9 @@ const CardProdutoCatalogo: React.FC<Props> = ({
   jaKey,
 }) => {
   const { isModoPaisagem, cardWidth } = useOrientation();
+
+  const { userData } = useContext(AuthContext);
+  const representanteId = userData?.representanteId;
 
   const { selectedTabelaPrecoContext } = useClientInfoContext();
   const tabelaPrecoSelecionada = selectedTabelaPrecoContext ?? {
@@ -101,12 +113,12 @@ const CardProdutoCatalogo: React.FC<Props> = ({
     onNavigateToDetails();
   }, [disableNavigate, onNavigateToDetails]);
 
-  if (__DEV__ && produto?.imagens?.length > 3) {
-    console.log("[CardProdutoCatalogo] Produto com muitas imagens", {
-      codigo: produto.codigo,
-      total: produto.imagens.length,
-    });
-  }
+  // if (__DEV__ && produto?.imagens?.length > 3) {
+  //   console.log("[CardProdutoCatalogo] Produto com muitas imagens", {
+  //     codigo: produto.codigo,
+  //     total: produto.imagens.length,
+  //   });
+  // }
 
   return (
     <>

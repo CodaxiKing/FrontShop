@@ -35,7 +35,6 @@ const LoginScreen = () => {
   const isConnected = useNetworkStatus();
   console.log("Aplicação Online?:", isConnected);
 
-
   const handleLogin = () => {
     if (!username && !password) {
       Alert.alert("Aviso", "Usuário e(ou) Senha incorretos, tente novamenete.");
@@ -61,13 +60,16 @@ const LoginScreen = () => {
     goBackToLogin();
   };
 
-  // useEffect(() =>{
-  //   //setUsername("junior@grupotechnos.com.br");
-  //   setUsername("isnaildo@grupotechnos.com.br");
-  //   setPassword("dasdsadsadasdasdsa");
-  // })
-  
-  
+  useEffect(() =>
+  {
+    // setUsername("junior@grupotechnos.com.br"); 
+    // setUsername("isnaildo@grupotechnos.com.br");
+    // setUsername("pedromartins@grupotechnos.com.br");
+    // setUsername("cesarmilla@grupotechnos.com.br");
+    setUsername("andremartins@grupotechnos.com.br");
+    setPassword("dasdsadsadasdasdsa");
+  })
+    
   return (
     <>
       <Container>

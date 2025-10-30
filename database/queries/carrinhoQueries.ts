@@ -4,9 +4,12 @@
 export const querySelectPedidoPorChave = `
   SELECT *
   FROM NovoPedido
-  WHERE (cpfCnpj = ? AND clienteId = ? AND representanteId = (representanteId = ? OR representanteId IS NULL))
+  WHERE cpfCnpj = ? AND clienteId = ? AND representanteId = ?
+  ORDER BY id DESC
   LIMIT 1;
 `;
+
+
 
 // Cria novo pedido
 export const queryInsertNovoPedido = `

@@ -38,6 +38,7 @@ import LoadingPedidos from "./Loading";
 import { PedidoSincronizadoItem } from "@/context/interfaces/PedidoSincronizadoItem";
 import { formatarDataParaExibicao, parseDate } from "./useFormatAndParseDate";
 import { hasValue } from "@/helpers/hasValue";
+import { usePedidoCopia } from "@/context/PedidoCopiaContext";
 const db = SQLite.openDatabaseSync("user_data.db");
 
 type ProdutoDoPedido = {
@@ -89,6 +90,8 @@ const TableSicronizacao = () => {
   const { userData } = useContext(AuthContext);
   const representanteId = userData?.representanteId;
 
+  const { setSelectedOrderRaw } = usePedidoCopia();
+
   useEffect(() => {
     setLoading(true);
     if (representanteId) {
@@ -101,27 +104,6 @@ const TableSicronizacao = () => {
 
   const fetchPedidosSincronizados = async (representanteId: string) => {
     try {
-      // const query = `
-      //   SELECT
-      //     PS.id,
-      //     PS.dataCriacao,
-      //     PS.valorTotal,
-      //     PS.dataSincronizacao,
-      //     PS.quebraPreVenda,
-      //     PS.statusCodigo,
-      //     PS.statusDescricao,
-      //     PS.quantidadeItens,
-      //     PS.ClienteId,
-      //     CC.RazaoSocial
-      //   FROM
-      //     PedidoSincronizado PS
-      //   LEFT JOIN
-      //     CarteiraCliente CC ON PS.ClienteId = CC.ClienteId
-      //   WHERE
-      //     PS.representanteId = ?
-      //     ;
-      // `;
-
       //Foi necessário pegar todos os campos para evitar erros nas chamadas de sincronização
       const query = `SELECT PS.*, CC.RazaoSocial
                       FROM PedidoSincronizado PS
@@ -180,21 +162,27 @@ const TableSicronizacao = () => {
             activeTab={activeTab}
             placeholder="Filtrar por Status, Data e Buscar (Dados Clientes)"
           />
-          {/* <ImportButton
-            onPress={() =>
-              pedidoSelecionado &&
-              navigation.navigate("CopiarPedido", {
-                pedidoSelecionado: pedidoSelecionado as PedidoSincronizadoItem,
-              })
-            }
+
+          {/* <ImportButton disabled onPress={handleOpenModal}>
+            <ButtonText>Importar</ButtonText>
+          </ImportButton> */}
+          <ImportButton
+            onPress={() => {
+              if (pedidoSelecionado) {
+                setSelectedOrderRaw(pedidoSelecionado); // <- guarda {codigo, quantidade}
+                navigation.navigate("ListaDeClientes", {
+                  isCopiarPedido: true,
+                });
+              }
+            }}
             disabled={!pedidoSelecionado}
             style={{ backgroundColor: pedidoSelecionado ? "#007bff" : "#ccc" }}
           >
             <ButtonText>Copiar</ButtonText>
-          </ImportButton> 
-          <ImportButton disabled onPress={handleOpenModal}>
+          </ImportButton>
+          {/* <ImportButton disabled onPress={handleOpenModal}>
             <ButtonText>Importar</ButtonText>
-          </ImportButton>*/}
+          </ImportButton> */}
         </Header>
         <ScrollView
           contentContainerStyle={{
@@ -204,9 +192,9 @@ const TableSicronizacao = () => {
         >
           <TableContainer>
             <TableHeader>
-              {/* <TableCell flex={0.5} align="center">
+              <TableCell flex={0.5} align="center">
                 <TableText></TableText>
-              </TableCell> */}
+              </TableCell>
               <TableCell flex={1.5}>
                 <TableText>Data Pedido</TableText>
               </TableCell>
@@ -241,13 +229,13 @@ const TableSicronizacao = () => {
                 const isPrevenda = item.isPrevenda === true;
                 return (
                   <TableRow key={item.id}>
-                    {/* <TableCell flex={0.5} align="center">
+                    <TableCell flex={0.5} align="center">
                       <CheckBox
                         label=""
                         isChecked={pedidoSelecionado?.id === item.id}
                         onPress={() => handlePedidoSelecionado(item)}
                       />
-                    </TableCell> */}
+                    </TableCell>
 
                     <TableCell flex={1.5}>
                       <TableText>
@@ -258,7 +246,6 @@ const TableSicronizacao = () => {
                       <TableText>{item.razaoSocial || "N/A"}</TableText>
                     </TableCell>
                     <TableCell flex={1}>
-                      {/* Esta linha já estava correta, e agora receberá o dado certo */}
                       <TableText>{item.quantidadeItens}</TableText>
                     </TableCell>
                     <TableCell flex={1}>

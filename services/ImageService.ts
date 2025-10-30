@@ -93,10 +93,12 @@ export const ImageService = {
 
     const worker = async (item: any) => {
       try {
-        if (verbose) logImg("DOWN ⬇️", `id=${item.id}`, `cod=${item.codigoProduto}`, `#${item.ordem}`, item.urlRemota);
+        if (verbose) 
+          logImg("DOWN ⬇️", `id=${item.id}`, `cod=${item.codigoProduto}`, `#${item.ordem}`, item.urlRemota);
         const local = await ImageStorage.download(item.urlRemota);
         await ProdutoImagemRepository.setOk(item.id, local);
-        if (verbose) logImg("OK   ✅", `id=${item.id}`, `local=${local}`);
+        if (verbose) 
+          logImg("OK   ✅", `id=${item.id}`, `local=${local}`);
       } catch (e) {
         try {
           await ProdutoImagemRepository.setFalha(item.id);

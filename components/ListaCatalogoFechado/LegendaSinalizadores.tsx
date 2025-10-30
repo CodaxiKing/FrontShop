@@ -1,3 +1,4 @@
+// src/components/ListaCatalogoFechado/LegendaSinalizadores.tsx
 import React, { useMemo } from "react";
 import {
   View,
@@ -10,12 +11,35 @@ import {
   iconFromKey,
   DEFAULT_LEGEND,
   IconKey,
+  ICON_TO_CODES_CANON, // fallback canônico (dos utils)
 } from "@/utils/sinalizadorIcon";
 import {
   normalizeSinalizadores,
   decorateForUI,
   type IconKey as NK,
 } from "@/utils/normalizeSinalizador";
+
+// --- SUPER-FALLBACK local (caso utils venham indefinidos por ciclo de import/build) ---
+const LOCAL_ICON_TO_CODES_CANON: Partial<Record<IconKey, string[]>> = {
+  star: ["111"],     // Favorito (fonte de dados separada)
+  cart: ["000"],     // Já comprou (fonte de dados separada)
+  trophy: ["001"],   // Campeões
+  gift: ["002"],     // Com kit
+  new: ["003"],      // Lançamentos
+  calendar: ["004"], // Pré-venda
+  return: ["005"],   // Retorno
+  info: [],
+};
+
+const FALLBACK_DEFAULT_LEGEND: { key: IconKey; label: string }[] = [
+  { key: "star", label: "Favorito" },
+  { key: "trophy", label: "Campeões" },
+  { key: "gift", label: "Com Kit" },
+  { key: "new", label: "Lançamentos" },
+  { key: "calendar", label: "Pré-venda" },
+  { key: "return", label: "Retorno" },
+  { key: "cart", label: "Já comprou" },
+];
 
 // -- Tipos --
 type LegendItem = { key: IconKey; label: string };
@@ -36,9 +60,7 @@ type Props = {
   forceAll?: boolean;
 
   // clique em um ícone -> aplicar filtro daquele(s) sinalizador(es)
-  // no modo estático (sem "codes" vindos dos produtos) usamos esse mapa
-  // para resolver IconKey -> códigos dos sinalizadores.
-  iconToCodesMap?: Partial<Record<IconKey, string[]>>;
+  iconToCodesMap?: Partial<Record<IconKey, string[]>>; // pode vir vazio/undef
   onPressIcon?: (codes: string[]) => void;
 
   // clique no “Legendas:” -> resetar filtros aplicados
@@ -46,6 +68,13 @@ type Props = {
 };
 
 const TITLE = "Legenda:";
+
+// Helper SEM lançar exceção (evita "Cannot convert undefined value to object")
+function isNonEmptyObject(obj: unknown): obj is Record<string, unknown> {
+  if (!obj || typeof obj !== "object") return false;
+  // só chamamos Object.keys se já garantimos ser objeto
+  return Object.keys(obj as any).length > 0;
+}
 
 const LegendaSinalizadores: React.FC<Props> = ({
   items = DEFAULT_LEGEND,
@@ -57,11 +86,20 @@ const LegendaSinalizadores: React.FC<Props> = ({
   onPressIcon,
   onReset,
 }) => {
+  // Itens base (se DEFAULT_LEGEND ou items vierem indefinidos, usa fallback local)
+  const safeItems = useMemo<LegendItem[]>(() => {
+    const base = Array.isArray(items) && items.length ? items : DEFAULT_LEGEND;
+    if (Array.isArray(base) && base.length) return base;
+    if (__DEV__) console.debug("[Legenda] DEFAULT_LEGEND indisponível; usando FALLBACK_DEFAULT_LEGEND");
+    return FALLBACK_DEFAULT_LEGEND;
+  }, [items]);
+
+  // Labels padrão para usar durante o dinâmico
   const defaultLabelByKey = useMemo(() => {
     const m = new Map<IconKey, string>();
-    for (const it of DEFAULT_LEGEND) m.set(it.key, it.label);
+    for (const it of safeItems) m.set(it.key, it.label);
     return m;
-  }, []);
+  }, [safeItems]);
 
   // constrói itens dinâmicos com base nos produtos da página
   const dynamicItems: DynamicLegendItem[] | null = useMemo(() => {
@@ -72,6 +110,7 @@ const LegendaSinalizadores: React.FC<Props> = ({
     for (const p of produtos) {
       const norm = normalizeSinalizadores(p?.sinalizadores);
       const deco = decorateForUI(norm);
+
       for (const s of deco) {
         const key = String(s.icon).trim() as NK as IconKey;
         const code = String(s.codigo ?? "").trim();
@@ -85,20 +124,39 @@ const LegendaSinalizadores: React.FC<Props> = ({
       }
     }
 
-    return Array.from(acc.entries()).map(([key, v]) => ({
+    const out = Array.from(acc.entries()).map(([key, v]) => ({
       key,
       label: v.label,
       codes: Array.from(v.codes),
     }));
+
+    if (__DEV__) console.debug("[Legenda] dynamicItems =", out);
+    return out;
   }, [produtos, defaultLabelByKey]);
 
-  // regra:
-  // - forceAll = true -> sempre todos (items)
-  // - senão, usa dinâmico; se vazio/nulo, cai para todos
+  // regra de itens a renderizar:
+  // - forceAll = true -> sempre todos (estático)
+  // - senão, usa dinâmico; se vazio/nulo, cai para estático
   const renderItems: Array<LegendItem | DynamicLegendItem> = useMemo(() => {
-    if (forceAll) return items;
-    return dynamicItems && dynamicItems.length > 0 ? dynamicItems : items;
-  }, [forceAll, dynamicItems, items]);
+    if (forceAll) return safeItems;
+    return dynamicItems && dynamicItems.length > 0 ? dynamicItems : safeItems;
+  }, [forceAll, dynamicItems, safeItems]);
+
+  // Mapa mesclado por prioridade (garante fallback por-CHAVE):
+  // LOCAL  <-  CANÔNICO(utils)  <-  iconToCodesMap (remoto)
+  const mergedMap = useMemo<Partial<Record<IconKey, string[]>>>(() => {
+    const canonic = isNonEmptyObject(ICON_TO_CODES_CANON) ? (ICON_TO_CODES_CANON as any) : {};
+    const remote  = isNonEmptyObject(iconToCodesMap)     ? (iconToCodesMap as any)     : {};
+    const merged = { ...LOCAL_ICON_TO_CODES_CANON, ...canonic, ...remote };
+    if (__DEV__) {
+      const dbg = {
+        hasRemote: isNonEmptyObject(iconToCodesMap),
+        keysRemote: isNonEmptyObject(iconToCodesMap) ? Object.keys(remote) : [],
+      };
+      console.debug("[Legenda] mergedMap pronto", dbg);
+    }
+    return merged;
+  }, [iconToCodesMap]);
 
   return (
     <View style={[styles.container, style]}>
@@ -115,18 +173,28 @@ const LegendaSinalizadores: React.FC<Props> = ({
         const key = (it as any).key as IconKey;
         const label = (it as any).label as string;
 
-        // se veio do dinâmico, já tem "codes"; se veio do estático, tenta resolver via iconToCodesMap
+        // se veio do dinâmico, já tem "codes"; se veio do estático, resolve por chave no mergedMap
         const dynCodes = Array.isArray((it as any).codes)
           ? ((it as any).codes as string[])
           : undefined;
-        const codes =
-          dynCodes && dynCodes.length > 0
-            ? dynCodes
-            : iconToCodesMap?.[key] || [];
 
-        const Wrapper = onPressIcon && codes.length ? TouchableOpacity : View;
-        const onPress =
-          onPressIcon && codes.length ? () => onPressIcon!(codes) : undefined;
+        const isStatic = !dynCodes || dynCodes.length === 0;
+        const codes = isStatic ? (mergedMap[key] ?? []) : dynCodes;
+
+        const clickable = !!onPressIcon && Array.isArray(codes) && codes.length > 0;
+        const Wrapper: any = clickable ? TouchableOpacity : View;
+        const onPress = clickable ? () => onPressIcon!(codes) : undefined;
+
+        if (__DEV__) {
+          console.debug(
+            `[Legenda] item key=${key} label="${label}" codes=`,
+            codes,
+            "static=",
+            isStatic,
+            "clickable=",
+            clickable
+          );
+        }
 
         return (
           <Wrapper

@@ -42,6 +42,7 @@ export const TabText = styled.Text<{ active: boolean }>`
 `;
 
 export const SearchInput = styled.TextInput<{ activeTab: string }>`
+  flex: 1;
   background-color: #ffffff;
   border-radius: 8px;
   border: 1px solid #dddddd;

@@ -10,7 +10,7 @@ import {
 } from "./style";
 import ConfirmacaoModalButton from "@/components/ConfirmacaoModalButton";
 import { useNavigation } from "expo-router";
-import { NavigationProp } from "@react-navigation/native";
+import { NavigationProp, useRoute } from "@react-navigation/native";
 
 import * as SQLite from "expo-sqlite";
 import { RootStackParamList } from "@/types/types";
@@ -25,6 +25,7 @@ import { useClientInfoContext } from "@/context/ClientInfoContext";
 import { ITabelaPrecoItem } from "@/context/interfaces/RepresentanteItem";
 import { useBloqueios } from "@/hooks/useBloqueios";
 import { useTopContext } from "@/context/TopContext";
+import { usePedidoCopia } from "@/context/PedidoCopiaContext";
 
 interface TabelaProdutoModalProps {
   visible: boolean;
@@ -223,6 +224,13 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
 
     const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
+    const { setTargetClient, setSelectedTabela, stageCartFromTabela } =
+      usePedidoCopia();
+
+    const route = useRoute();
+    const isCopiarPedido = route.params?.isCopiarPedido;
+    // console.log("Parametros da Rota(ModalSelecaoTabelaProduto):", route.params);
+
     // Carrega opções de tabela de preço
     useEffect(() => {
       getTabelaPrecoFromRepresentante();
@@ -402,30 +410,37 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
     };
 
     const getInformacoesPedidoAberto = async () => {
-      const query = `SELECT * FROM NovoPedido WHERE clienteId = ? AND cpfCnpj = ?`;
+      const query = `
+        SELECT *
+        FROM NovoPedido
+        WHERE clienteId = ? AND cpfCnpj = ? AND representanteId = ?
+        ORDER BY id DESC
+        LIMIT 1
+      `;
       const result = await db.getFirstAsync(query, [
         cliente.clienteId,
         cliente.cpfCnpj,
+        representanteId, // já existe no componente
       ]);
-      // console.log("Modal Tabela Preco - Resultado do pedido aberto:", result);
-      if (result) {
-        setInfoPedidoAberto(result);
-      } else {
-        console.log("Nenhum pedido aberto encontrado.");
-      }
-      // return result;
+
+      setInfoPedidoAberto(result ?? null);
     };
 
     const deletePedidoDoClienteSelecionado = async () => {
-      const query = `DELETE FROM NovoPedido WHERE clienteId = ? AND cpfCnpj = ?`;
-      await db.runAsync(query, [cliente.clienteId, cliente.cpfCnpj]);
+      const query = `
+        DELETE FROM NovoPedido
+        WHERE clienteId = ? AND cpfCnpj = ? AND representanteId = ?
+      `;
+      await db.runAsync(query, [cliente.clienteId, cliente.cpfCnpj, representanteId]);
     };
 
+
+
     // Função que executa o fluxo de confirmação e navegação
-    const proceedWithSelection = async () => {
+    const proceedWithSelection = async (shouldDelete: boolean) => {
       try {
-        // 1) Deletar o pedido do cliente selecionado
-        if (infoPedidoAberto) {
+       // Só deleta se for troca de tabela (Confirmar no alerta)
+        if (shouldDelete && infoPedidoAberto) {
           await deletePedidoDoClienteSelecionado();
         }
         // console.log("Pedido deletado com sucesso.");
@@ -460,6 +475,28 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
             enderecos: cliente.enderecos || [],
           },
         });
+
+        {
+          isCopiarPedido &&
+            // Salva informações do cliente no contexto de copia do pedido
+            setTargetClient({
+              cpfCnpj: cliente.cpfCnpj,
+              clienteId: cliente.clienteId,
+              codigoCliente: cliente?.codigo,
+              razaoSocial: cliente.razaoSocial,
+              enderecoCompleto: cliente.enderecoCompleto,
+              enderecos: cliente.enderecos as any[],
+            });
+
+          // Salva informações da tabela preço no contexto de copia do pedido
+          setSelectedTabela({
+            value: selectedTabelaPreco.value,
+            tipo: selectedTabelaPreco.tipo,
+          });
+
+          // Faz o merge {codigo, quantidade} + preços atuais da tabela no contexto de copia do pedido
+          stageCartFromTabela(parsedProdutos);
+        }
 
         // console.log(selectedTabelaPreco); // return;
 
@@ -505,19 +542,22 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
       const pedido = await infoPedidoAberto;
       if (pedido) {
         // 3) parsear a tabelaDePrecoId que vem como string JSON
-        let tabelaIdRaw: string;
+        let tabelaIdRaw = "";
         try {
           const parsed = JSON.parse(pedido.tabelaDePrecoId);
-          if (typeof parsed === "string") {
-            tabelaIdRaw = parsed;
-          } else if (parsed && typeof parsed.value !== "undefined") {
-            tabelaIdRaw = String(parsed.value);
-          } else {
-            tabelaIdRaw = String(parsed);
-          }
+          tabelaIdRaw =
+            typeof parsed === "string"
+              ? parsed
+              : parsed && typeof parsed.value !== "undefined"
+              ? String(parsed.value)
+              : String(parsed ?? "");
         } catch {
-          // cai aqui se não for JSON válido
-          tabelaIdRaw = pedido.tabelaDePrecoId.replace(/"/g, "");
+          tabelaIdRaw = String(pedido.tabelaDePrecoId ?? "").replace(/"/g, "");
+        }
+
+        // normalização: vazio/"null" => PADRÃO (999999)
+        if (!tabelaIdRaw || tabelaIdRaw.toLowerCase() === "null") {
+          tabelaIdRaw = PADRAO_COD; // PADRAO_COD já definido acima como "999999"
         }
 
         // 4) só entra no alerta se for troca de tabela e existir pedidoTabela
@@ -527,8 +567,8 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
         ) {
           // 4) buscar descrição amigável
           const existingLabel =
-            tabelaPrecoData.find((item) => String(item.codigo) === tabelaIdRaw)
-              ?.descricao ?? tabelaIdRaw;
+            tabelaPrecoData.find((item) => String(item.codigo) === String(tabelaIdRaw))
+              ?.descricao ?? (tabelaIdRaw === PADRAO_COD ? "Padrão" : String(tabelaIdRaw));
 
           // 6) extrair mais infos
           const totalItens = pedido.quantidadeItens;
@@ -540,7 +580,7 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
               `Se você continuar, esse carrinho será excluído. Deseja prosseguir?`,
             [
               { text: "Cancelar", onPress: () => onClose(), style: "cancel" },
-              { text: "Continuar", onPress: proceedWithSelection },
+              { text: "Continuar", onPress: () => proceedWithSelection(true) },
             ]
           );
           // Alert.alert(
@@ -575,14 +615,6 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
               <SelectFieldComponent
                 selectedValue={selectedTabelaPreco.value}
                 options={options}
-                // options={[
-                //   { label: "Selecione uma Tabela de Preço", value: item.codigo  },
-                //   ...tabelaPrecoData.map((item) => ({
-                //     label: item.descricao,
-                //     value: item.codigo,
-                //     tipo: item.tipo,
-                //   })),
-                // ]}
                 onValueChange={(value) => {
                   const selected = tabelaPrecoData.find(
                     (item) => item.codigo === value

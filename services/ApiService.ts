@@ -1288,7 +1288,7 @@ export const fetchAllCatalogo = async (
   console.log(`Tempo total de sincronização [Catalogo]: ${formatDuration(durationMs)}`);
 
   // dispara em background; a UI depois cola na 2ª barra via eventBus
-  ImageService.downloadAll({ batchSize: 100, concurrency: 4 })
+  ImageService.downloadAll({ batchSize: 100, concurrency: 4 , verbose: true})
   .catch((e) => console.warn("[IMG-SYNC] downloadAll error:", e));
 
   return { total: totalCatalogo, synced: totalCatalogo };

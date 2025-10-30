@@ -99,15 +99,6 @@ const PedidosEmAberto: React.FC = () => {
           // Sincronização bem-sucedida
           syncResults.success++;
 
-          // try {
-          //   await fetchAllPedidosSincronizados(accessToken);
-          // } catch (fetchError) {
-          //   console.warn(
-          //     "⚠️ Falha ao atualizar pedidos sincronizados:",
-          //     fetchError.message
-          //   );
-          // }
-
           // Remove o pedido da base local após sincronização bem-sucedida
           const deleteQuery = `DELETE FROM Pedido WHERE id = ?;`;
           await db.runAsync(deleteQuery, [order.id]);
@@ -273,13 +264,13 @@ const PedidosEmAberto: React.FC = () => {
       );
     } else if (activeTab === "sincronizados") {
       return (
-        <FooterContainer>
+        <FooterContainerEmAberto>
           <NewOrderButton
             onPress={() => navigation.navigate("ListaDeClientes")}
           >
             <ButtonText>Novo Pedido</ButtonText>
           </NewOrderButton>
-        </FooterContainer>
+        </FooterContainerEmAberto>
       );
     }
   };
@@ -318,7 +309,6 @@ const PedidosEmAberto: React.FC = () => {
 
           {renderContent()}
           {renderFooterButtons()}
-          {/* <FooterContainer>{renderFooterButtons()}</FooterContainer> */}
         </Container>
       </ScrollView>
     </Theme>

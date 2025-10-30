@@ -119,7 +119,7 @@ export const ImageStorage = {
       );
 
       const dt = Date.now() - t0;
-      // console.log("[img:fs] downloaded", { status, ms: dt, from: urlRemota, to: uri });
+      console.log("[img:fs] downloaded", { status, ms: dt, from: urlRemota, to: uri });
 
       if (status >= 200 && status < 300) {
         const saved = await FileSystem.getInfoAsync(uri);

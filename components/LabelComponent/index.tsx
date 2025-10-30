@@ -95,7 +95,10 @@ export const LabelComponent: React.FC<LabelProps> = ({
         <ContentText>
           <NameProfile>{nomeRepresentante || "Carregando..."}</NameProfile>
           <StatusConect>
-            Sincronizado em: {CONFIGS.AMBIENTE_SINCRONIZACAO}
+            Ambiente: {CONFIGS.AMBIENTE_SINCRONIZACAO}             
+          </StatusConect>
+          <StatusConect>            
+            Version: {CONFIGS.APP_VERSION}
           </StatusConect>
           {/* <StatusConect>Sincronizado em: Ambiente Dev</StatusConect> */}
         </ContentText>
