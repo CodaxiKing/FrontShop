@@ -26,7 +26,7 @@ npx expo start --clear
 
 
 # =============================================
-# eas build --platform android --profile refactory
+# eas build --platform android --profile development
 # eas build --platform android --profile preview
 # eas build --platform android --profile production
 

@@ -51,7 +51,10 @@
       },
       "eas": {
         "projectId": "8d1327ac-4de1-4b8f-8641-bdd8cc7c9cb3"
-      }
+      },      
+      "EXPO_PUBLIC_PRESIGN_ENDPOINT": "https://us5kq41kxg.execute-api.us-east-1.amazonaws.com/presign",
+      "EXPO_PUBLIC_AWS_REGION": "us-east-1",
+      "EXPO_PUBLIC_S3_BUCKET": "pcountpidev"
     }
   }
 }

@@ -3,14 +3,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal"
-    },
-    "refactory": {
-      "distribution": "internal",
-      "developmentClient": true,
-      "android": {
-        "buildType": "apk"
-      }
-    },
+    }, 
     "preview": {
       "distribution": "internal",
       "android": {
