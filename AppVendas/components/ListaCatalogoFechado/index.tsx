@@ -1,7 +1,7 @@
 // src/components/ListaCatalogoFechado/index.tsx
 import React, { useMemo, useEffect, useState } from "react";
 import { View } from "react-native";
-import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
+import { useRoute, RouteProp } from "@react-navigation/native";
 
 import { useListaProdutos } from "@/hooks/useListaProdutos";
 import { useClientInfoContext } from "@/context/ClientInfoContext";
@@ -20,9 +20,11 @@ import { FormSearch } from "./style";
 import LegendaSinalizadores from "./LegendaSinalizadores";
 
 // DEV tools (apenas UI e logs em modo dev)
+import { useCatalogoDevTools } from "@/utils/dev/catalogoDevTools";
 import { eventBus } from "@/core/eventBus";
 import { FiltroService, FILTERS_EVENTS } from "@/services/FiltroService";
 import { fetchIconToCodesMap } from "@/utils/filters/sinalizadorIconMap";
+import { useNavigation } from "@react-navigation/native";
 import { usePedidoCopia } from "@/context/PedidoCopiaContext";
 import { triggerAutoCreateCart } from "@/services/pedidoCopiaService";
 
@@ -33,8 +35,11 @@ type CatalogoFechadoRouteProp = RouteProp<
 
 const ListaCatalogoFechado: React.FC = () => {
   const route = useRoute<CatalogoFechadoRouteProp>();
-  const navigation = useNavigation();
-  const { selectedTabelaPrecoContext, clienteIdContext, selectedClientContext } = useClientInfoContext();
+  const {
+    selectedTabelaPrecoContext,
+    clienteIdContext,
+    selectedClientContext,
+  } = useClientInfoContext();
   const { userData } = React.useContext(AuthContext);
   const representanteId = userData?.representanteId || "";
   const cpfCnpj = userData?.cpfCnpj || "";
@@ -46,33 +51,32 @@ const ListaCatalogoFechado: React.FC = () => {
   const { numColumns } = useOrientation();
   const { preloadQuantidades, setQuantidade } = useProdutoQuantidade();
 
-  // resolve selectedTabelaPreco (mantém a regra do "catalogOpen" -> 999999)
-  const selectedTabelaPreco = useMemo(() => {
-    if (catalogOpen) return "999999";
+  let selectedTabelaPreco = useMemo(() => {
+    if (catalogOpen) {
+      return "999999";
+    }
     const ctx = selectedTabelaPrecoContext as any;
     const param = route.params?.selectedTabelaPreco as any;
-
-    const resolved =
-      (ctx && typeof ctx === "object" ? String(ctx.value) : ctx ? String(ctx) : "") ||
-      (param && typeof param === "object" ? String(param.value) : param ? String(param) : "") ||
-      "999999";
-
-    if (__DEV__) {
-      console.debug(
-        "[CatalogoFechado] selectedTabelaPreco =",
-        resolved,
-        "(catalogOpen=",
-        catalogOpen,
-        ")"
-      );
-    }
-    return resolved;
-  }, [catalogOpen, selectedTabelaPrecoContext, route.params?.selectedTabelaPreco]);
+    return (
+      (ctx && typeof ctx === "object"
+        ? String(ctx.value)
+        : ctx
+        ? String(ctx)
+        : "") ||
+      (param && typeof param === "object"
+        ? String(param.value)
+        : param
+        ? String(param)
+        : "") ||
+      "999999"
+    );
+  }, [selectedTabelaPrecoContext, route.params?.selectedTabelaPreco]);
 
   const [termoBusca, setTermoBusca] = React.useState("");
   const termoBuscaNorm = useMemo(() => termoBusca.trim(), [termoBusca]);
 
-  // Consome params vindos do Sidebar (scanner / busca geral)
+  // Consome params de rota vindos do Sidebar (scanner de código de barras e busca geral)
+  //const navigation = useNavigation();
   useEffect(() => {
     const p: any = route.params || {};
     const tipo = p.filtroTipo;
@@ -140,16 +144,9 @@ const ListaCatalogoFechado: React.FC = () => {
     (async () => {
       try {
         const map = await fetchIconToCodesMap();
-        if (alive && map) {
-          setIconToCodesMap(map);
-        } else {
-          setIconToCodesMap(undefined); // deixa a Legenda cair no fallback canônico
-        }
+        if (alive) setIconToCodesMap(map);
       } catch (e) {
-        if (__DEV__) {
-          console.warn("[Legenda] fetchIconToCodesMap falhou; a Legenda usará fallback canônico.", e);
-        }
-        setIconToCodesMap(undefined); // evita Object.keys em {}
+        // silencioso
       }
     })();
     return () => {
@@ -157,7 +154,7 @@ const ListaCatalogoFechado: React.FC = () => {
     };
   }, []);
 
-  // Pré-carrega quantidades
+  // Pré-carrega quantidades (uma vez por abertura / troca de cliente/rep)
   useEffect(() => {
     if (!cpfCnpj || !clienteIdContext || !representanteId) return;
     preloadQuantidades(
@@ -213,21 +210,14 @@ const ListaCatalogoFechado: React.FC = () => {
 
   // handler: tocar no título “Legendas:” -> limpar filtros aplicados
   const handleLegendReset = React.useCallback(() => {
-    if (__DEV__) console.debug("[Legenda] Reset solicitado (FILTERS_EVENTS.CLEARED)");
     eventBus.emit(FILTERS_EVENTS.CLEARED);
   }, []);
 
   // handler: tocar num ícone de legenda -> filtrar pelos códigos mapeados
   const handleLegendFilter = React.useCallback(
     (codes: string[]) => {
-      const effectiveCodes = Array.isArray(codes) && codes.length > 0 ? codes : [];
-
-      if (__DEV__) {
-        console.debug("[Legenda] Clique em ícone -> codes=", codes, "effective=", effectiveCodes);
-      }
-
       const compiled = FiltroService.compile(
-        { sinalizadores: { include: effectiveCodes, exclude: [] } },
+        { sinalizadores: { include: codes, exclude: [] } },
         {
           tabelaPreco: selectedTabelaPreco,
           codigoCliente: String(codigoCliente ?? ""), // para "já comprou"
@@ -236,11 +226,6 @@ const ListaCatalogoFechado: React.FC = () => {
           representanteId: String(representanteId ?? ""), // para "favorito"
         }
       );
-
-      if (__DEV__) {
-        console.warn("[Legenda] compiled.whereSql =", compiled?.whereSql);
-      }
-
       eventBus.emit(FILTERS_EVENTS.APPLIED, compiled);
     },
     [

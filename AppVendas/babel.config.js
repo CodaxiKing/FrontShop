@@ -4,6 +4,15 @@ module.exports = function (api) {
   return {
     presets: ["babel-preset-expo"],
     plugins: [
+      [
+        "module-resolver",
+        {
+          root: ["./"],
+          alias: {
+            "@": "./",
+          },
+        },
+      ],
       "@babel/plugin-transform-class-static-block",
       // outros plugins que você eventualmente tenha,
       // SEMPRE deixe o reanimated por último:

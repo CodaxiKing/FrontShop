@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { router, Stack } from "expo-router";
 import { useKeepAwake } from "expo-keep-awake";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import "react-native-reanimated";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -25,12 +25,7 @@ import { FiltroProvider } from "@/context/FiltroContext";
 // Impede esconder automático da splash antes do app estar pronto
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  useKeepAwake();
-
-  //  Estes hooks estão sendo usados fora dos Providers
-  // Eles só funcionam se o contexto tiver valor default.
-  // Se quiser, refatoro para usá-los dentro dos Providers com um componente filho.
+function App() {
   const { isAuthenticated } = useAuth();
   const { isModoPaisagem, deviceType, width, height } = useOrientation();
 
@@ -54,13 +49,33 @@ export default function RootLayout() {
     prepare();
   }, []);
 
-  useEffect(() => {
-    if (appReady && isAuthenticated) {
-      // Você já está em /views/_layout.tsx, então esse replace pode ser desnecessário.
-      // Mantive sua lógica original.
-      router.replace("/views");
-    }
-  }, [appReady, isAuthenticated]);
+
+
+  return (
+    <ThemeProvider theme={theme}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          // ajuda a não repintar telas fora de foco
+          freezeOnBlur: true,
+          // solta telas inativas para reduzir custo
+          detachInactiveScreens: true,
+        }}
+      >
+        {/* Registre aqui qualquer tela que exija opção específica */}
+        {/* desmonta o catálogo ao perder foco */}
+        <Stack.Screen
+          name="CatalogoFechado"
+          options={{ detachPreviousScreen: true }}
+        />
+        {/* Demais telas continuam herdando as options do Stack */}
+      </Stack>
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  useKeepAwake();
 
   return (
     <>
@@ -72,31 +87,9 @@ export default function RootLayout() {
               <ProdutoQuantidadeProvider>
                 <EditarPedidoProdutoQuantidadeProvider>
                   <EditarPedidoAbertoProvider>
-                    {appReady ? (
-                      <OrientationProvider>
-                        <ThemeProvider theme={theme}>
-                          <Stack
-                            screenOptions={{
-                              headerShown: false,
-                              // ajuda a não repintar telas fora de foco
-                              freezeOnBlur: true,
-                              // solta telas inativas para reduzir custo
-                              detachInactiveScreens: true,
-                            }}
-                          >
-                            {/* Registre aqui qualquer tela que exija opção específica */}
-                            {/* desmonta o catálogo ao perder foco */}
-                            <Stack.Screen
-                              name="CatalogoFechado"
-                              options={{ unmountOnBlur: true }}
-                            />
-                            {/* Demais telas continuam herdando as options do Stack */}
-                          </Stack>
-                        </ThemeProvider>
-                      </OrientationProvider>
-                    ) : (
-                      <></>
-                    )}
+                    <OrientationProvider>
+                      <App />
+                    </OrientationProvider>
                   </EditarPedidoAbertoProvider>
                 </EditarPedidoProdutoQuantidadeProvider>
               </ProdutoQuantidadeProvider>
