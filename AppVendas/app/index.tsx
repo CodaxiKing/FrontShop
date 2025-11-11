@@ -63,11 +63,11 @@ const LoginScreen = () => {
   useEffect(() =>
   {
     // setUsername("junior@grupotechnos.com.br"); 
-    // setUsername("isnaildo@grupotechnos.com.br");
+     setUsername("isnaildo@grupotechnos.com.br");
     // setUsername("pedromartins@grupotechnos.com.br");
     // setUsername("cesarmilla@grupotechnos.com.br");
-    setUsername("andremartins@grupotechnos.com.br");
-    setPassword("dasdsadsadasdasdsa");
+    // setUsername("andremartins@grupotechnos.com.br");
+     setPassword("dasdsadsadasdasdsa");
   })
     
   return (

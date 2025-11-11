@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from "react";
+import React, { useRef, useState, useMemo, useEffect } from "react";
 import {
   Dimensions,
   Modal,
@@ -22,8 +22,6 @@ import styled from "styled-components/native";
 import { ImageCounter, ImageCounterText } from "./style";
 import { getProdutoImageSource } from "@/core/images/imageSource"; // [IMAGENS][PATCH]
 
-const { width, height } = Dimensions.get("screen");
-
 interface ModalImageZoomProps {
   isVisible: boolean;
   onClose: () => void;
@@ -39,8 +37,19 @@ export const ModalImageZoom: React.FC<ModalImageZoomProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [zoomed, setZoomed] = useState(false);
+  const [dimensions, setDimensions] = useState(() => {
+    const { width, height } = Dimensions.get("screen");
+    return { width, height };
+  });
 
   const isZoomedShared = useSharedValue(false);
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ screen }) => {
+      setDimensions({ width: screen.width, height: screen.height });
+    });
+    return () => subscription?.remove();
+  }, []);
 
   useDerivedValue(() => {
     runOnJS(setZoomed)(isZoomedShared.value);
@@ -51,12 +60,12 @@ export const ModalImageZoom: React.FC<ModalImageZoomProps> = ({
   }));
 
   const handleScroll = (event: any) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / width);
+    const index = Math.round(event.nativeEvent.contentOffset.x / dimensions.width);
     setCurrentIndex(index);
   };
 
   const goToImage = (index: number) => {
-    scrollRef.current?.scrollTo({ x: index * width, animated: true });
+    scrollRef.current?.scrollTo({ x: index * dimensions.width, animated: true });
     setCurrentIndex(index);
   };
 
@@ -129,6 +138,8 @@ export const ModalImageZoom: React.FC<ModalImageZoomProps> = ({
                 setScrollEnabled(!zoomed);
               }}
               isZoomedShared={isZoomedShared}
+              width={dimensions.width}
+              height={dimensions.height}
             />
           ))}
         </ScrollView>
@@ -149,6 +160,8 @@ interface ZoomableImageProps {
   imagemUrl?: string; // [IMAGENS][PATCH]
   onZoomChange?: (zoomed: boolean) => void;
   isZoomedShared: Animated.SharedValue<boolean>;
+  width: number;
+  height: number;
 }
 
 export const ZoomableImage = ({
@@ -156,6 +169,8 @@ export const ZoomableImage = ({
   imagemUrl,
   onZoomChange,
   isZoomedShared,
+  width,
+  height,
 }: ZoomableImageProps) => {
   const scale = useSharedValue(1);
   const startScale = useSharedValue(1);
@@ -227,11 +242,16 @@ export const ZoomableImage = ({
     return getProdutoImageSource({ imagemLocal, imagens: imagemUrl ? [imagemUrl] : undefined });
   }, [imagemLocal, imagemUrl]);
 
+  const imageStyle = useMemo(() => ({
+    width,
+    height,
+  }), [width, height]);
+
   return (
     <GestureDetector gesture={composedGesture}>
       <Animated.Image
         source={source}
-        style={[styles.image, animatedStyle]}
+        style={[imageStyle, animatedStyle]}
         resizeMode="contain"
       />
     </GestureDetector>
@@ -242,13 +262,6 @@ function clamp(value: number, min: number, max: number) {
   "worklet";
   return Math.min(Math.max(value, min), max);
 }
-
-const styles = StyleSheet.create({
-  image: {
-    width,
-    height,
-  },
-});
 
 const ModalContainer = styled(GestureHandlerRootView)`
   flex: 1;

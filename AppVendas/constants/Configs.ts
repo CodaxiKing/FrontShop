@@ -1,5 +1,5 @@
-// export const BASE_URL = "https://technosbffdev.homologa.click"; // Ambiente de Desenvolvimento
-export const BASE_URL = "https://technosbff.homologa.click"; // Ambiente de Homologação
+export const BASE_URL = "https://technosbffdev.homologa.click"; // Ambiente de Desenvolvimento
+// export const BASE_URL = "https://technosbff.homologa.click"; // Ambiente de Homologação
 // export const BASE_URL = "https://technosbffpre.homologa.click"; // Ambiente de Pre (Pré-Produção)
 
 // Label do Ambiente de Sincronização que fica no componente Menu e LabelComponent
@@ -26,7 +26,7 @@ function getAmbienteSincronizacao() {
 function getAppVersion() {
   let APP_VERSION = "";
 
-  const MINOR_NNUMBER = 11; // Versão do App, deve ser incrementada a cada nova versão.
+  const MINOR_NNUMBER = 13; // Versão do App, deve ser incrementada a cada nova versão.
 
   if (BASE_URL.includes("dev")) {
     APP_VERSION = `dev v2.0.0.${MINOR_NNUMBER}`;

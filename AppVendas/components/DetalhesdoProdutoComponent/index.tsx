@@ -91,12 +91,8 @@ const DetalhesDoProdutoComponent: React.FC = () => {
   );
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
 
-  const {
-    quantity,
-    onIncrementQuantity,
-    onDecrementQuantity,
-    onInputChange,
-  } = useCardProdutoController(produto);
+  const { quantity, onIncrementQuantity, onDecrementQuantity, onInputChange } =
+    useCardProdutoController(produto);
 
   const ITEMS_PER_VIEW = 3;
   const flatListRef = useRef<FlatList>(null);
@@ -225,7 +221,7 @@ const DetalhesDoProdutoComponent: React.FC = () => {
     produto.precoComIPI > 0 ? produto.precoComIPI : produto.precoUnitario;
 
   return (
-    <ScrollView>
+    <ScrollView style={{ width: "100%" }}>
       {/* Imagens do produto */}
       <Container>
         <LeftColumn>
@@ -236,12 +232,13 @@ const DetalhesDoProdutoComponent: React.FC = () => {
           )}
 
           <FlatList
-            data={productImages.slice(currentIndex, currentIndex + ITEMS_PER_VIEW)}
+            data={productImages.slice(
+              currentIndex,
+              currentIndex + ITEMS_PER_VIEW
+            )}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => setMainImage(item)}
-              >
+              <TouchableOpacity onPress={() => setMainImage(item)}>
                 <SmallImage source={{ uri: item }} />
               </TouchableOpacity>
             )}
@@ -321,13 +318,22 @@ const DetalhesDoProdutoComponent: React.FC = () => {
 
           <InfoContainer>
             <View style={{ flexDirection: "row", gap: 5, marginRight: 20 }}>
-              <Text>Preço Unitário:{"\n"}{formatCurrency(showPreco)}</Text>
+              <Text>
+                Preço Unitário:{"\n"}
+                {formatCurrency(showPreco)}
+              </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 5, marginRight: 20 }}>
-              <Text>Cód Barras:{"\n"}{produto.codigoBarra}</Text>
+              <Text>
+                Cód Barras:{"\n"}
+                {produto.codigoBarra}
+              </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 5 }}>
-              <Text>NCM:{"\n"}{produto.ncm}</Text>
+              <Text>
+                NCM:{"\n"}
+                {produto.ncm}
+              </Text>
             </View>
           </InfoContainer>
         </RightColumn>
@@ -352,7 +358,11 @@ const DetalhesDoProdutoComponent: React.FC = () => {
               renderItem={({ item }) => (
                 <ProductItem>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate("DetalhesDoProduto", { produto: item })}
+                    onPress={() =>
+                      navigation.navigate("DetalhesDoProduto", {
+                        produto: item,
+                      })
+                    }
                   >
                     <ProductImage source={{ uri: item.productImage }} />
                     <ProductPrice>
@@ -384,17 +394,27 @@ const DetalhesDoProdutoComponent: React.FC = () => {
             <InfoCell>Fecho:</InfoCell>
             <InfoValue>{produto.fecho || "N/A"}</InfoValue>
             <InfoCell>Tamanho da Caixa:</InfoCell>
-            <InfoValue>{produto.tamanhoCaixa ? produto.tamanhoCaixa + "mm" : "N/A"}</InfoValue>
+            <InfoValue>
+              {produto.tamanhoCaixa ? produto.tamanhoCaixa + "mm" : "N/A"}
+            </InfoValue>
             <InfoCell>Resistente à água:</InfoCell>
-            <InfoValue>{produto.resistenciaAgua ? produto.resistenciaAgua + "ATM" : "N/A"}</InfoValue>
+            <InfoValue>
+              {produto.resistenciaAgua
+                ? produto.resistenciaAgua + "ATM"
+                : "N/A"}
+            </InfoValue>
           </InfoRow>
           <InfoRow>
             <InfoCell>Tamanho da Pulseira:</InfoCell>
-            <InfoValue>{produto.tamanhoPulseira ? produto.tamanhoPulseira + "mm" : "N/A"}</InfoValue>
+            <InfoValue>
+              {produto.tamanhoPulseira ? produto.tamanhoPulseira + "mm" : "N/A"}
+            </InfoValue>
             <InfoCell>Pulseira:</InfoCell>
             <InfoValue>{produto.materialPulseira || "N/A"}</InfoValue>
             <InfoCell>Espessura da Caixa:</InfoCell>
-            <InfoValue>{produto.espessuraCaixa ? produto.espessuraCaixa + "mm" : "N/A"}</InfoValue>
+            <InfoValue>
+              {produto.espessuraCaixa ? produto.espessuraCaixa + "mm" : "N/A"}
+            </InfoValue>
           </InfoRow>
           <InfoRow>
             <InfoCell>Caixa:</InfoCell>
@@ -402,18 +422,24 @@ const DetalhesDoProdutoComponent: React.FC = () => {
             <InfoCell>Peso:</InfoCell>
             <InfoValue>{produto.peso ? produto.peso + "g" : "N/A"}</InfoValue>
             <InfoCell>Garantia:</InfoCell>
-            <InfoValue>{produto.garantia ? produto.garantia + " meses" : "N/A"}</InfoValue>
+            <InfoValue>
+              {produto.garantia ? produto.garantia + " meses" : "N/A"}
+            </InfoValue>
           </InfoRow>
         </InfoTable>
 
         <DescriptionContainer>
           <DescriptionTitle>Descrição Comercial:</DescriptionTitle>
-          <DescriptionText>{produto.descricaoComercial || "N/A"}</DescriptionText>
+          <DescriptionText>
+            {produto.descricaoComercial || "N/A"}
+          </DescriptionText>
         </DescriptionContainer>
 
         <DescriptionContainer>
           <DescriptionTitle>Especificações Técnicas:</DescriptionTitle>
-          <DescriptionText>{produto.descricaoTecnica || "Nenhuma informação disponível."}</DescriptionText>
+          <DescriptionText>
+            {produto.descricaoTecnica || "Nenhuma informação disponível."}
+          </DescriptionText>
         </DescriptionContainer>
       </TableContainer>
     </ScrollView>

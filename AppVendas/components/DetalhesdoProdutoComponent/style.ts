@@ -43,11 +43,12 @@ export const SmallImage = styled.Image`
   }
 `;
 export const MainImage = styled.Image`
-  width: 320px;
+  max-width: 300px;
+  width: 300px;
   height: 400px;
   @media (max-width: 700px) {
     object-fit: cover;
-    width: 320px;
+    width: 300px;
   }
 `;
 

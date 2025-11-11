@@ -19,10 +19,10 @@ const DetalhesDoProduto: React.FC = () => {
       {/* <TopProvider> */}
       <Top />
       {/* </TopProvider> */}
-      <ScrollView>
-        {/* <LabelComponent labelText="Detalhes do Produto" /> */}
-        <DetalhesDoProdutoComponent />
-      </ScrollView>
+      {/* <ScrollView> */}
+      {/* <LabelComponent labelText="Detalhes do Produto" /> */}
+      <DetalhesDoProdutoComponent />
+      {/* </ScrollView> */}
     </Theme>
   );
 };

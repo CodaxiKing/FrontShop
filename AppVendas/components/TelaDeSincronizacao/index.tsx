@@ -281,9 +281,16 @@ export const TelaDeSincronizacao: React.FC = () => {
 
   const handleSyncAll = async () => {
     if (accessToken) {
-      setIsLoadingSync(true);
-      await syncAll(accessToken);
-      setIsLoadingSync(false);
+      // ÚNICA ALTERAÇÃO: blindagem com try/finally para sempre liberar o topo
+      try {
+        setIsLoadingSync(true);
+        await syncAll(accessToken);
+      } catch (error) {
+        console.error("Erro ao sincronizar tudo:", error);
+        Alert.alert("Erro", "Ocorreu um erro durante a sincronização.");
+      } finally {
+        setIsLoadingSync(false);
+      }
     } else {
       Alert.alert("Erro", "Token de acesso inválido.");
     }
