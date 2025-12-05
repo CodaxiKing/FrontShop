@@ -1,6 +1,7 @@
 // components/Top/Sidebar/index.tsx
 import React, { useContext, useEffect, useRef, useState, useMemo } from "react";
 import {
+  Platform,
   Alert,
   Animated,
   Dimensions,
@@ -28,13 +29,11 @@ import {
   MaterialIcons,
 } from "@expo/vector-icons";
 import { Checkbox, RadioButton } from "react-native-paper";
-import ParametrosModal from "@/modal/ModalParametros";
 
 import * as SQLite from "expo-sqlite";
 import { BandejaItem } from "@/context/interfaces/BandejaItem";
 import { BandejaVendedorItem } from "@/context/interfaces/BandejaVendedorItem";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { NavigationProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, NavigationProp } from "@react-navigation/native";
 import { RootStackParamList } from "@/types/types";
 import AuthContext from "@/context/AuthContext";
 import { useClientInfoContext } from "@/context/ClientInfoContext";
@@ -803,7 +802,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               </ScrollView>
 
               <Footer>
-                <TouchableOpacity onPress={() => setParametrosModalVisible(true)}>
+                <TouchableOpacity onPress={() => {
+                  onClose();
+                  navigation.navigate("ParametersScreen" as any);
+                }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Ionicons name="settings-outline" size={24} color="#333" />
                     <FooterText style={{ marginLeft: 10 }}>Parâmetros</FooterText>
@@ -815,12 +817,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </TouchableWithoutFeedback>
       )}
 
-      {parametrosModalVisible && (
-        <ParametrosModal
-          visible={parametrosModalVisible}
-          onClose={() => setParametrosModalVisible(false)}
-        />
-      )}
 
       {filtrosModalVisible && (
         <ModalFiltrosAvançados

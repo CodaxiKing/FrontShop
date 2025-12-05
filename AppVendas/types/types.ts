@@ -267,6 +267,9 @@ export type RootStackParamList = {
     cpfCnpj?: string;
     pedidoId?: number;
   };
+
+  ParametersScreen: undefined;
+
 };
 
 export interface EmpresaDestino {
