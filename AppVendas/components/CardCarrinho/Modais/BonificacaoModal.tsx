@@ -151,6 +151,7 @@ const BonificacaoModal: React.FC<BonificacaoModalProps> = ({
       const meiosPagamento = JSON.stringify([
         {
           tipoPagamento: 1,
+          tipoPedido: "B",
           formaPagamento: "",
           pixComprovanteTransacao: "",
           quantidadeDuplicata: 0,
@@ -163,6 +164,7 @@ const BonificacaoModal: React.FC<BonificacaoModalProps> = ({
           informacaoComplementar: "",
           motivoBonificacao,
           descricaoMotivoBonificacao,
+          ganhadores: "Informação de ganhadores ainda não se aplica",
           percentualDeFrete: 0,
           pedidoInterno: pedidoInternoValue,
         },
@@ -251,8 +253,8 @@ const BonificacaoModal: React.FC<BonificacaoModalProps> = ({
         });
 
         // Verifica se tabelaDePrecoId existe e é uma string JSON
-        const tabelaDePrecoObj = pedidoBase[0]?.tabelaDePrecoId
-          ? JSON.parse(pedidoBase[0]?.tabelaDePrecoId)
+        const tabelaDePrecoObj = pedidoBase[0]?.selectedTabelaPreco
+          ? JSON.parse(pedidoBase[0]?.selectedTabelaPreco)
           : null;
 
         if (pedidoBase[0] && pedidoBase[0].percentualDeDesconto !== null) {
@@ -305,7 +307,9 @@ const BonificacaoModal: React.FC<BonificacaoModalProps> = ({
           null, // dataPedidoSaldo
           false, // quebraPreVenda
           null, // dataPrevistaPA
-          "", // tipoPedido
+          "B", // tipoPedido
+          motivoBonificacao, // motivoBonificacao
+          descricaoMotivoBonificacao, // descricaoMotivoBonificacao
           enderecoEntrega, // enderecoEntrega
           numeroEntrega, // numeroEntrega
           cepEntrega, // cepEntrega
@@ -318,7 +322,7 @@ const BonificacaoModal: React.FC<BonificacaoModalProps> = ({
           JSON.stringify(tabelaDePrecoObj?.toString()), // tabelaDePrecoId
           1, // status
           "Em Aberto", // statusDescricao
-          "", // ganhadores
+          "Informação de ganhadores ainda não se aplica", // ganhadores
           "", // pedidoSaldo
           dataCriacao, // dataCriacao
           JSON.stringify(produtosComImagem), // produtos
@@ -330,8 +334,8 @@ const BonificacaoModal: React.FC<BonificacaoModalProps> = ({
     } catch (error) {
       console.error("Erro ao finalizar pedidos por bonificação:", error);
     } finally {
-      const deleteQuery = `DELETE FROM NovoPedido WHERE id = ?;`;
-      await db.runAsync(deleteQuery, [pedidoId]);
+      // const deleteQuery = `DELETE FROM NovoPedido WHERE id = ?;`;
+      // await db.runAsync(deleteQuery, [pedidoId]);
 
       if (representanteId) {
         setUserData({ ...userData, representanteCreateId: representanteId });

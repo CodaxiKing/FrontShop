@@ -213,6 +213,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
       const meiosPagamento = JSON.stringify([
         {
           tipoPagamento: 2,
+          tipoPedido: "P",
           formaPagamento: formaPagamentoSelecionado || "",
           pixComprovanteTransacao: "",
           quantidadeDuplicata: duplicatasSelecionado,
@@ -397,7 +398,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
           null, // dataPedidoSaldo
           false, // quebraPreVenda
           null, // dataPrevistaPA
-          "", // tipoPedido
+          "P", // tipoPedido
           enderecoEntrega, // enderecoEntrega
           numeroEntrega, // numeroEntrega
           cepEntrega, // cepEntrega
@@ -460,6 +461,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
       const meiosPagamento = JSON.stringify([
         {
           tipoPagamento: 2,
+          tipoPedido: "P",
           formaPagamento: formaPagamentoSelecionado || "",
           pixComprovanteTransacao: "",
           quantidadeDuplicata: duplicatasSelecionado,
@@ -650,7 +652,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
             null, // dataPedidoSaldo
             false /* quebraPreVenda */,
             null /* dataPrevistaPA */,
-            "" /* tipoPedido */,
+            "P" /* tipoPedido */,
             enderecoEntrega, // enderecoEntrega
             numeroEntrega, // numeroEntrega
             cepEntrega, // cepEntrega
@@ -716,7 +718,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
             null, // dataPedidoSaldo
             true /* quebraPreVenda */,
             null /* dataPrevistaPA */,
-            "" /* tipoPedido */,
+            "P" /* tipoPedido */,
             enderecoEntrega, // enderecoEntrega
             numeroEntrega, // numeroEntrega
             cepEntrega, // cepEntrega

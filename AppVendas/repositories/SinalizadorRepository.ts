@@ -25,7 +25,10 @@ export const SinalizadorRepository = {
    * Garante incluir o pseudo-sinalizador "000" (JÁ COMPROU) no ícone correspondente.
    */
   async fetchIconToCodesMap(): Promise<Partial<Record<IconKey, string[]>>> {
-    const rows = (await executeQuery(queryListDistinctSinalizadorCodDesc, [])) as Row[];
+    const rows = (await executeQuery(
+      queryListDistinctSinalizadorCodDesc,
+      []
+    )) as Row[];
 
     // descricao (normalizada) -> Set(códigos)
     const byDesc = new Map<string, Set<string>>();
@@ -52,13 +55,17 @@ export const SinalizadorRepository = {
 
     // garante o pseudo-sinalizador "JÁ COMPROU" (código "000") no ícone correto
     // Ajuste a chave abaixo se o seu ícone para "Já comprou" NÃO for "cart".
-    const JA_COMPROU_ICON_KEY: IconKey = "cart";
-    out[JA_COMPROU_ICON_KEY] = Array.from(new Set([...(out[JA_COMPROU_ICON_KEY] ?? []), "000"]));
+    const JA_COMPROU_ICON_KEY: IconKey = "bought";
+    out[JA_COMPROU_ICON_KEY] = Array.from(
+      new Set([...(out[JA_COMPROU_ICON_KEY] ?? []), "000"])
+    );
 
     // garante o pseudo-sinalizador "FAVORITO" (código "111") no ícone correto
     // Ajuste a chave abaixo se o ícone de favorito for outro que não "star".
     const FAVORITO_ICON_KEY: IconKey = "star";
-    out[FAVORITO_ICON_KEY] = Array.from(new Set([...(out[FAVORITO_ICON_KEY] ?? []), "111"]));
+    out[FAVORITO_ICON_KEY] = Array.from(
+      new Set([...(out[FAVORITO_ICON_KEY] ?? []), "111"])
+    );
 
     return out;
   },

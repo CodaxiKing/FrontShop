@@ -24,6 +24,7 @@ import { formatCurrency } from "@/helpers";
 import CheckBox from "../Checkbox";
 import LoadingPedidos from "./Loading";
 import { formatarDataParaExibicao, parseDate } from "./useFormatAndParseDate";
+import { usePedidosFilter } from "./usePedidosFilter";
 const db = SQLite.openDatabaseSync("user_data.db");
 
 interface TablePedidosAbertosProps {
@@ -43,6 +44,9 @@ const TablePedidosAbertos: React.FC<TablePedidosAbertosProps> = ({
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  const { searchTerm, setSearchTerm, filteredPedidos } =
+    usePedidosFilter(pedidos);
 
   useEffect(() => {
     setLoading(true);
@@ -116,6 +120,7 @@ const TablePedidosAbertos: React.FC<TablePedidosAbertosProps> = ({
           ),
         }));
 
+      // console.log("Pedidos EM ABERTO (verificar cpfCnpj):", pedidosOrdenados.slice(0, 2));
       setPedidos(pedidosOrdenados);
       setLoading(false);
     } catch (error) {
@@ -154,6 +159,8 @@ const TablePedidosAbertos: React.FC<TablePedidosAbertosProps> = ({
           <SearchInput
             placeholder="Filtrar por Status, Data e Buscar (Dados Clientes)"
             activeTab="someTabValue"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
           />
           {/*  <ImportButton
             disabled={isDisabled}
@@ -197,8 +204,8 @@ const TablePedidosAbertos: React.FC<TablePedidosAbertosProps> = ({
         {/* ScrollView para as linhas */}
         <ScrollView>
           {loading && <LoadingPedidos />}
-          {pedidos.length > 0 ? (
-            pedidos.map((item, index) => (
+          {filteredPedidos.length > 0 ? (
+            filteredPedidos.map((item, index) => (
               // console.log("Selecionados:", item),
               <TableRow key={index}>
                 <TableCell flex={0.2}>

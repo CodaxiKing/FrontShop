@@ -29,7 +29,6 @@ import {
   MaterialIcons,
 } from "@expo/vector-icons";
 import { Checkbox, RadioButton } from "react-native-paper";
-
 import * as SQLite from "expo-sqlite";
 import { BandejaItem } from "@/context/interfaces/BandejaItem";
 import { BandejaVendedorItem } from "@/context/interfaces/BandejaVendedorItem";
@@ -51,6 +50,7 @@ import {
 } from "@/utils/filters/buildSegments";
 
 const db = SQLite.openDatabaseSync("user_data.db");
+
 
 interface SidebarProps {
   isVisible: boolean;
@@ -184,13 +184,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (isVisible) {
       fetchBandejas();
       fetchBandejasVendedor();
-      fetchMarcas();
-      fetchSubGrupos();
-      fetchLinhas();
       fetchSinalizadores();
-      fetchOutros();
 
-      // restaura seleção
       setCheckedLinhas(filtrosSelecionados.linhas || []);
       setCheckedMarcas(filtrosSelecionados.marcas || []);
       setCheckedSubGrupos(filtrosSelecionados.subGrupos || []);
@@ -324,6 +319,48 @@ const Sidebar: React.FC<SidebarProps> = ({
     onClose();
   };
 
+  const buildWhereClause = (filters: {
+    marcas?: string[];
+    subGrupos?: string[];
+    linhas?: string[];
+    outros?: string[];
+  }, excludeField?: string) => {
+    const conditions: string[] = [];
+    
+    if (excludeField !== 'marca' && filters.marcas && filters.marcas.length > 0) {
+      const marcaList = filters.marcas.map(m => `'${m.replace(/'/g, "''")}'`).join(',');
+      conditions.push(`codigoMarca IN (${marcaList})`);
+    }
+    
+    if (excludeField !== 'subgrupo' && filters.subGrupos && filters.subGrupos.length > 0) {
+      const subgrupoList = filters.subGrupos.map(s => `'${s.replace(/'/g, "''")}'`).join(',');
+      conditions.push(`codigoSubGrupo IN (${subgrupoList})`);
+    }
+    
+    if (excludeField !== 'linha' && filters.linhas && filters.linhas.length > 0) {
+      const linhaList = filters.linhas.map(l => `'${l.replace(/'/g, "''")}'`).join(',');
+      conditions.push(`codigoLinha IN (${linhaList})`);
+    }
+    
+    if (excludeField !== 'outros' && filters.outros && filters.outros.length > 0) {
+      const outrosParts: string[] = [];
+      const generos = filters.outros.filter(o => ['MASCULINO', 'FEMININO', 'UNISSEX'].includes(o.toUpperCase()));
+      if (generos.length > 0) {
+        const generoList = generos.map(g => `'${g.toUpperCase()}'`).join(',');
+        outrosParts.push(`UPPER(Genero) IN (${generoList})`);
+      }
+      const hasImportado = filters.outros.some(o => o.toUpperCase() === 'IMPORTADO');
+      const hasNacional = filters.outros.some(o => o.toUpperCase() === 'NACIONAL');
+      if (hasImportado) outrosParts.push(`codigoOrigem IN ('000005', '000006')`);
+      if (hasNacional) outrosParts.push(`codigoOrigem = '000007'`);
+      if (outrosParts.length > 0) {
+        conditions.push(`(${outrosParts.join(' OR ')})`);
+      }
+    }
+    
+    return conditions.length > 0 ? conditions.join(' AND ') : '';
+  };
+
   // fetches
   const fetchBandejas = async () => {
     try {
@@ -347,27 +384,30 @@ const Sidebar: React.FC<SidebarProps> = ({
       Alert.alert("Erro", "Falha ao carregar as bandejas.");
     }
   };
-  const fetchMarcas = async () => {
+  const fetchMarcas = async (filters?: { subGrupos?: string[]; linhas?: string[]; outros?: string[] }) => {
     try {
-      const query = `SELECT codigoMarca, descricaoMarca FROM Catalogo GROUP BY codigoMarca ORDER BY descricaoMarca ASC`;
+      const whereClause = buildWhereClause(filters || {}, 'marca');
+      const query = `SELECT codigoMarca, descricaoMarca FROM Catalogo ${whereClause ? 'WHERE ' + whereClause : ''} GROUP BY codigoMarca ORDER BY descricaoMarca ASC`;
       const rows = (await db.getAllAsync(query)) as MarcaCatalogo[];
       setMarcas(rows);
     } catch {
       Alert.alert("Erro", "Falha ao carregar as marcas.");
     }
   };
-  const fetchSubGrupos = async () => {
+  const fetchSubGrupos = async (filters?: { marcas?: string[]; linhas?: string[]; outros?: string[] }) => {
     try {
-      const query = `SELECT codigoSubGrupo, descricaoSubGrupo FROM Catalogo GROUP BY codigoSubGrupo ORDER BY descricaoSubGrupo ASC`;
+      const whereClause = buildWhereClause(filters || {}, 'subgrupo');
+      const query = `SELECT codigoSubGrupo, descricaoSubGrupo FROM Catalogo ${whereClause ? 'WHERE ' + whereClause : ''} GROUP BY codigoSubGrupo ORDER BY descricaoSubGrupo ASC`;
       const rows = (await db.getAllAsync(query)) as SubGrupo[];
       setSubGrupos(rows);
     } catch {
       Alert.alert("Erro", "Falha ao carregar os subgrupos.");
     }
   };
-  const fetchLinhas = async () => {
+  const fetchLinhas = async (filters?: { marcas?: string[]; subGrupos?: string[]; outros?: string[] }) => {
     try {
-      const query = `SELECT codigoLinha, descricaoLinha FROM Catalogo GROUP BY codigoLinha ORDER BY descricaoLinha ASC`;
+      const whereClause = buildWhereClause(filters || {}, 'linha');
+      const query = `SELECT codigoLinha, descricaoLinha FROM Catalogo ${whereClause ? 'WHERE ' + whereClause : ''} GROUP BY codigoLinha ORDER BY descricaoLinha ASC`;
       const rows = (await db.getAllAsync(query)) as LinhaProduto[];
       setLinhas(rows);
     } catch {
@@ -391,12 +431,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     const map = rows
       .map((r) => ({
         label: String(r.descricao ?? "").replace(/_/g, " ").trim(),
-        // garante zero-padding de 3 dígitos, caso necessário
         value: String(r.codigo ?? "").trim().padStart(3, "0"),
       }))
       .filter((o) => o.label && o.value);
 
-    // adiciona o pseudo-sinalizador "JÁ COMPROU"
     const EXTRA = { label: "JÁ COMPROU", value: "000" as const };
     const hasExtra = map.some((o) => o.value === EXTRA.value);
     setSinalizadoresMap(hasExtra ? map : [...map, EXTRA]);
@@ -406,9 +444,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   }
 };
 
-  const fetchOutros = async () => {
+  const fetchOutros = async (filters?: { marcas?: string[]; subGrupos?: string[]; linhas?: string[] }) => {
     try {
-      const query = `SELECT Genero as genero, codigoOrigem FROM Catalogo;`;
+      const whereClause = buildWhereClause(filters || {}, 'outros');
+      const query = `SELECT Genero as genero, codigoOrigem FROM Catalogo ${whereClause ? 'WHERE ' + whereClause : ''};`;
       const rows = (await db.getAllAsync(query)) as any[];
       const labelsSet = new Set<string>();
       for (const item of rows) {
@@ -424,6 +463,20 @@ const Sidebar: React.FC<SidebarProps> = ({
       Alert.alert("Erro", "Falha ao carregar filtros 'Outros'.");
     }
   };
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const filters = {
+      marcas: checkedMarcas,
+      subGrupos: checkedSubGrupos,
+      linhas: checkedLinhas,
+      outros: checkedOutrosItems,
+    };
+    fetchMarcas({ subGrupos: filters.subGrupos, linhas: filters.linhas, outros: filters.outros });
+    fetchSubGrupos({ marcas: filters.marcas, linhas: filters.linhas, outros: filters.outros });
+    fetchLinhas({ marcas: filters.marcas, subGrupos: filters.subGrupos, outros: filters.outros });
+    fetchOutros({ marcas: filters.marcas, subGrupos: filters.subGrupos, linhas: filters.linhas });
+  }, [checkedMarcas, checkedSubGrupos, checkedLinhas, checkedOutrosItems, isVisible]);
 
   // renderers
   const renderMarcas = () => (

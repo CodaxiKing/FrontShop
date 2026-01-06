@@ -28,6 +28,7 @@ import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { RootStackParamList } from "@/types/types";
 import { formatarDataParaExibicao, parseDate } from "./useFormatAndParseDate";
 import CheckBox from "../Checkbox";
+import { usePedidosFilter } from "./usePedidosFilter";
 const db = SQLite.openDatabaseSync("user_data.db");
 
 interface TablePedidoPrevendaProps {
@@ -51,6 +52,8 @@ const TablePreVendas: React.FC<TablePedidoPrevendaProps> = ({
   const [loading, setLoading] = useState(true);
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  
+  const { searchTerm, setSearchTerm, filteredPedidos } = usePedidosFilter(pedidos);
 
   useEffect(() => {
     setLoading(true);
@@ -118,9 +121,9 @@ const TablePreVendas: React.FC<TablePedidoPrevendaProps> = ({
           ),
         }));
 
+      console.log("Pedidos PRÉ-VENDA (verificar cpfCnpj):", pedidosOrdenados.slice(0, 2));
       setPedidos(pedidosOrdenados);
       setLoading(false);
-      // console.log("Pedidos Tabela Em Prevenda: ", result);
     } catch (error) {
       console.error("Erro ao buscar pedidos:", error);
       Alert.alert("Erro", "Falha ao carregar pedidos.");
@@ -152,6 +155,8 @@ const TablePreVendas: React.FC<TablePedidoPrevendaProps> = ({
           <SearchInput
             activeTab={activeTab}
             placeholder="Filtrar por Status, Data e Buscar (Dados Clientes)"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
           />
           {/* <ImportButton disabled onPress={handleOpenModal}>
             <ButtonText>Importar</ButtonText>
@@ -187,8 +192,8 @@ const TablePreVendas: React.FC<TablePedidoPrevendaProps> = ({
         </TableHeader>
         <ScrollView>
           {loading && <LoadingPedidos />}
-          {pedidos.length > 0 ? (
-            pedidos.map((item) => (
+          {filteredPedidos.length > 0 ? (
+            filteredPedidos.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
                   <TableText>

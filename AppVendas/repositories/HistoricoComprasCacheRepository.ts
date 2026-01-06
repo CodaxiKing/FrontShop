@@ -11,8 +11,8 @@ import {
   queryPopulateTempCompras,
   queryCountTempCompras,
   queryListAllTempCompras,
-  queryDetectHistoricoTable,           
-  buildQueryPopulateTempComprasFor,    
+  queryDetectHistoricoTable,
+  buildQueryPopulateTempComprasFor,
 } from "@/database/queries/historicoComprasCacheQueries";
 
 let _historicoDetectedName: string | null = null;
@@ -20,11 +20,11 @@ let _historicoDetectedName: string | null = null;
 async function detectHistoricoTable(): Promise<string | null> {
   if (_historicoDetectedName) return _historicoDetectedName;
   try {
-    const rows: Array<{ name: string }> = await executeQuery(queryDetectHistoricoTable, []);
+    const rows: Array<{ name: string }> = await executeQuery(
+      queryDetectHistoricoTable,
+      []
+    );
     _historicoDetectedName = rows?.[0]?.name ? String(rows[0].name) : null;
-    if (__DEV__) {
-      console.log(`[TEMP compras] historico detectado = ${_historicoDetectedName ?? "nenhum"}`);
-    }
   } catch (e) {
     console.warn("[TEMP compras] falha ao detectar tabela de histórico:", e);
     _historicoDetectedName = null;
@@ -62,13 +62,19 @@ export const HistoricoComprasCacheRepository = {
   },
 
   async count(): Promise<number> {
-    const rows: Array<{ n: number }> = await executeQuery(queryCountTempCompras, []);
+    const rows: Array<{ n: number }> = await executeQuery(
+      queryCountTempCompras,
+      []
+    );
     return Number(rows?.[0]?.n ?? 0);
   },
 
   // para hooks (useJaComprouTemp...)
   async listAllCodes(): Promise<string[]> {
-    const rows: Array<{ codigoBase: string }> = await executeQuery(queryListAllTempCompras, []);
-    return rows.map(r => String(r.codigoBase));
+    const rows: Array<{ codigoBase: string }> = await executeQuery(
+      queryListAllTempCompras,
+      []
+    );
+    return rows.map((r) => String(r.codigoBase));
   },
 };

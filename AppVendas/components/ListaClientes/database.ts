@@ -43,7 +43,8 @@ export async function fetchClienteDBSearch(search: string) {
                LOWER(codigo)       LIKE ? OR
                LOWER(razaoSocial)  LIKE ? OR
                LOWER(cpfCnpj)      LIKE ? OR
-               LOWER(cpfCnpjPai)   LIKE ?
+               LOWER(cpfCnpjPai)   LIKE ? OR
+               LOWER(enderecos)    LIKE ?
              )`
           : ""
       }

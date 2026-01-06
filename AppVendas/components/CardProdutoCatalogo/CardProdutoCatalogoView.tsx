@@ -6,8 +6,14 @@ import {
   View,
   StyleSheet,
   ImageSourcePropType,
+  ActivityIndicator,
 } from "react-native";
-import { AntDesign, MaterialIcons, Feather } from "@expo/vector-icons";
+import {
+  AntDesign,
+  MaterialIcons,
+  Feather,
+  FontAwesome5,
+} from "@expo/vector-icons";
 import { iconFromKey } from "@/utils/sinalizadorIcon";
 import {
   CardContainer,
@@ -62,6 +68,9 @@ interface CardProdutoCatalogoViewProps {
   formatCurrency: (value: number) => string;
   disableNavigate?: boolean;
   onOpenSinalizadoresMenu?: () => void;
+
+  onOpenLojasColigadas?: () => void;
+  hasColigadas?: boolean;
 }
 
 const CardProdutoCatalogoView: React.FC<CardProdutoCatalogoViewProps> = ({
@@ -91,6 +100,8 @@ const CardProdutoCatalogoView: React.FC<CardProdutoCatalogoViewProps> = ({
   formatCurrency,
   disableNavigate = false,
   onOpenSinalizadoresMenu,
+  onOpenLojasColigadas,
+  hasColigadas,
 }) => {
   const { exibirDesconto } = useParametros();
 
@@ -135,6 +146,7 @@ const CardProdutoCatalogoView: React.FC<CardProdutoCatalogoViewProps> = ({
       </LeftIconsContainer>
 
       <RightIconsContainer>
+        {/* Botão de Checkbox */}
         {catalogOpen && (
           <View style={styles.checkboxContainer}>
             <CheckBox
@@ -145,14 +157,28 @@ const CardProdutoCatalogoView: React.FC<CardProdutoCatalogoViewProps> = ({
           </View>
         )}
 
+        {/* Botão de Abrir detalhes do Produto */}
         <TouchableOpacity
           onPress={onNavigateToDetails}
           disabled={disableNavigate}
         >
           <Feather name="zoom-in" size={28} color="black" />
         </TouchableOpacity>
+
+        {/* Botão de Abrir Lojas Coligadas */}
+
+        {!catalogOpen && hasColigadas === true && (
+          <TouchableOpacity onPress={onOpenLojasColigadas}>
+            <FontAwesome5 name="store" size={20} color="black" />
+          </TouchableOpacity>
+        )}
+        {/* Tentativa de adicionar um loader enquanto não carrega */}
+        {/* {!catalogOpen && showColigadas === null && (
+          <ActivityIndicator size="small" color="#0000ff" />
+        )} */}
       </RightIconsContainer>
 
+      {/* Botão de Abrir Zoom da Imagem */}
       <TouchableOpacity
         onPress={onOpenImageZoom}
         disabled={disableNavigate}

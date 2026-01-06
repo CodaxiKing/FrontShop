@@ -26,7 +26,7 @@ function getAmbienteSincronizacao() {
 function getAppVersion() {
   let APP_VERSION = "";
 
-  const MINOR_NNUMBER = 13; // Versão do App, deve ser incrementada a cada nova versão.
+  const MINOR_NNUMBER = 16; // Versão do App, deve ser incrementada a cada nova versão.
 
   if (BASE_URL.includes("dev")) {
     APP_VERSION = `dev v2.0.0.${MINOR_NNUMBER}`;

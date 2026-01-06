@@ -1,17 +1,3 @@
-// =====================================================
-// ParametersScreen.tsx
-// 
-// Essa é a tela de configurações do app!
-// Aqui o usuário pode mudar várias preferências como:
-// - Exibir ou não produtos em pré-venda
-// - Ativar reajuste de preços
-// - Configurar como os produtos aparecem na lista
-// - Configurar parâmetros por marca no One Page
-// 
-// As configurações são salvas automaticamente no banco de dados
-// e no AsyncStorage para persistir entre sessões.
-// =====================================================
-
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
@@ -36,9 +22,7 @@ import * as SQLite from "expo-sqlite";
 // Usamos o mesmo banco que o resto do app
 const db = SQLite.openDatabaseSync("user_data.db");
 
-// =====================================================
-// COMPONENTE PRINCIPAL
-// =====================================================
+
 const ParametersScreen: React.FC = () => {
   // Hook de navegação - permite voltar para a tela anterior
   const navigation = useNavigation();
@@ -46,11 +30,6 @@ const ParametersScreen: React.FC = () => {
   // Dados do usuário logado - pegamos do contexto de autenticação
   const { userData } = useAuth();
   
-  // ===================================================
-  // CONTEXTO DE PARÂMETROS
-  // Aqui pegamos todos os valores e funções do contexto
-  // que criamos para gerenciar as configurações
-  // ===================================================
   const {
     exibirPreVenda,
     exibirDesconto,
@@ -61,25 +40,16 @@ const ParametersScreen: React.FC = () => {
     setParametros,
     setParametrosListaProdutos,
     setParametrosOnePage,
-    isLoading: isLoadingContext,  // Loading do contexto (carregando do banco)
-    loadParametros,               // Função para carregar do banco
-    saveToDatabase,               // Função para salvar manualmente
+    isLoading: isLoadingContext,  // Loading (carregando do armazenamento local)
+    loadParametros,               // Carrega configurações do dispositivo
+    saveToDatabase,               // Salva configurações no dispositivo (local)
   } = useParametros();
 
-  // ===================================================
-  // ESTADOS LOCAIS
-  // Usamos estados locais para editar os valores
-  // antes de salvar. Isso evita que mudanças parciais
-  // sejam salvas enquanto o usuário ainda está editando.
-  // ===================================================
-  
-  // Configurações básicas
   const [localExibirPreVenda, setLocalExibirPreVenda] = useState(exibirPreVenda);
   const [localExibirDesconto, setLocalExibirDesconto] = useState(exibirDesconto);
   const [localPilotarReajuste, setLocalPilotarReajuste] = useState(pilotarReajuste);
   const [localPorcentagemReajuste, setLocalPorcentagemReajuste] = useState(porcentagemReajuste);
   
-  // Configurações complexas (objetos)
   const [localListaProdutos, setLocalListaProdutos] = useState(parametrosListaProdutos);
   const [localOnePage, setLocalOnePage] = useState(parametrosOnePage);
   
@@ -96,31 +66,19 @@ const ParametersScreen: React.FC = () => {
   // ID do representante - usamos para salvar os parâmetros
   const representanteId = userData?.representanteId?.toString() || "";
 
-  // ===================================================
-  // EFEITO: Esconde o header padrão do React Navigation
-  // Usamos nosso próprio componente Top no lugar
-  // ===================================================
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // ===================================================
-  // EFEITO: Carrega os parâmetros quando a tela abre
-  // useFocusEffect executa toda vez que a tela ganha foco
-  // ===================================================
+
   useFocusEffect(
     useCallback(() => {
-      if (representanteId) {
-        console.log("🔄 Tela focada, carregando parâmetros para:", representanteId);
-        loadParametros(representanteId);
-      }
-    }, [representanteId, loadParametros])
+      console.log("🔄 Tela focada, carregando parâmetros do armazenamento LOCAL...");
+      loadParametros();
+    }, [loadParametros])
   );
 
-  // ===================================================
-  // EFEITO: Busca o nome do representante no banco
-  // Isso é apenas para exibir no header da tela
-  // ===================================================
+
   useEffect(() => {
     const fetchRepresentante = async () => {
       // Se não tiver email, usa o nome do userData
@@ -155,11 +113,7 @@ const ParametersScreen: React.FC = () => {
     fetchRepresentante();
   }, [email, userData?.nome]);
 
-  // ===================================================
-  // EFEITO: Sincroniza estados locais com o contexto
-  // Quando os valores do contexto mudam (ex: após carregar),
-  // atualizamos os estados locais para refletir
-  // ===================================================
+
   useEffect(() => {
     setLocalExibirPreVenda(exibirPreVenda);
     setLocalExibirDesconto(exibirDesconto);
@@ -176,11 +130,6 @@ const ParametersScreen: React.FC = () => {
     parametrosOnePage,
   ]);
 
-  // ===================================================
-  // FUNÇÃO: Salva todas as configurações
-  // Atualiza o contexto e força o salvamento no banco
-  // Passamos os dados explícitos para evitar race conditions
-  // ===================================================
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMessage(null);
@@ -214,30 +163,20 @@ const ParametersScreen: React.FC = () => {
       // Atualiza os parâmetros do One Page
       setParametrosOnePage(localOnePage);
       
-      // Força o salvamento no banco passando os dados explícitos
       // Isso garante que salvamos exatamente o que o usuário vê na tela
-      if (representanteId) {
-        const success = await saveToDatabase(representanteId, dataToSave);
+      const success = await saveToDatabase(dataToSave);
+      
+      if (success) {
+        console.log("✅ Parâmetros salvos com sucesso!");
+        setSaveMessage("Configurações salvas com sucesso!");
         
-        if (success) {
-          console.log("✅ Parâmetros salvos com sucesso!");
-          setSaveMessage("Configurações salvas com sucesso!");
-          
-          // Mostra a mensagem por 1.5 segundos e volta
-          setTimeout(() => {
-            setSaveMessage(null);
-            navigation.goBack();
-          }, 1500);
-        } else {
-          throw new Error("Falha ao salvar no banco");
-        }
-      } else {
-        // Se não tem representanteId, só volta (salvou no contexto)
-        // Isso pode acontecer em ambiente de teste
-        setSaveMessage("Configurações salvas!");
+        // Mostra a mensagem por 1.5 segundos e volta
         setTimeout(() => {
+          setSaveMessage(null);
           navigation.goBack();
-        }, 1000);
+        }, 1500);
+      } else {
+        throw new Error("Falha ao salvar no banco");
       }
     } catch (error) {
       console.error("❌ Erro ao salvar:", error);
@@ -254,19 +193,10 @@ const ParametersScreen: React.FC = () => {
     }
   };
 
-  // ===================================================
-  // FUNÇÃO: Cancela as alterações
-  // Simplesmente volta para a tela anterior sem salvar
-  // ===================================================
   const handleCancel = () => {
     navigation.goBack();
   };
 
-  // ===================================================
-  // COMPONENTE: Linha de input numérico reutilizável
-  // Usamos isso várias vezes na tela, então criamos
-  // uma função que retorna o JSX para evitar repetição
-  // ===================================================
   const renderInputRow = (
     label: string,
     value: number,
@@ -285,10 +215,6 @@ const ParametersScreen: React.FC = () => {
     </View>
   );
 
-  // ===================================================
-  // TELA DE LOADING
-  // Mostra enquanto carrega os parâmetros do banco
-  // ===================================================
   if (isLoadingContext) {
     return (
       <View style={styles.mainContainer}>
@@ -301,9 +227,7 @@ const ParametersScreen: React.FC = () => {
     );
   }
 
-  // ===================================================
-  // RENDER PRINCIPAL
-  // ===================================================
+
   return (
     <View style={styles.mainContainer}>
       {/* Componente Top - Header do app */}

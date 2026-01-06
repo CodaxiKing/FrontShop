@@ -47,6 +47,8 @@ import { useTopContext } from "@/context/TopContext";
 import { useClientInfoContext } from "@/context/ClientInfoContext";
 import { calcularSubtotalCarrinho } from "@/utils/subtotalComDescontoCarrinho";
 import { formatarEnderecoCompleto } from "@/utils/formatEndereco";
+import { calcularBreakdownCarrinho } from "@/helpers/calcularPrecoCarrinho";
+
 const db = SQLite.openDatabaseSync("user_data.db");
 
 type RootStackParamList = {
@@ -465,13 +467,6 @@ const CardCarrinho: React.FC<CardCarrinhoProps> = ({ refreshKeyLojas }) => {
 
         produtosData = produtosDataConsolidados;
 
-        // Filtrar pelas lojas selecionadas
-        if (lojasSelecionadas.length > 0) {
-          produtosData = produtosData.filter((cliente: any) =>
-            lojasSelecionadas.includes(cliente.cpfCnpj)
-          );
-        }
-
         // Adicionar lojas faltantes com produtos e sem endereço ainda
         lojasSelecionadas.forEach((lojaCpfCnpj) => {
           const lojaJaExiste = produtosData.some(
@@ -537,20 +532,6 @@ const CardCarrinho: React.FC<CardCarrinhoProps> = ({ refreshKeyLojas }) => {
             enderecoEntrega: enderecoSalvo ?? enderecoColigada ?? null,
           };
         });
-
-        // Atualiza no banco
-        const queryUpdatePedido = `
-        UPDATE NovoPedido
-        SET produtos = ?
-        WHERE id = ? AND representanteId = ?;
-      `;
-        if (pedidoId && representanteId) {
-          await db.runAsync(queryUpdatePedido, [
-            JSON.stringify(produtosData),
-            pedidoId,
-            representanteId,
-          ]);
-        }
 
         // Atualizar estado
         setProdutos(produtosData);
@@ -902,9 +883,15 @@ const CardCarrinho: React.FC<CardCarrinhoProps> = ({ refreshKeyLojas }) => {
                         setTimeout(() => navigation.goBack(), 500);
                       } else {
                         await db.runAsync(
-                          `UPDATE NovoPedido SET produtos = ? WHERE id = ? AND representanteId = ?;`,
+                          `UPDATE NovoPedido
+                              SET produtos = ?, quantidadeItens = ?, quantidadePecas = ?, valorTotal = ?, nomeEcommerce = ?
+                              WHERE id = ? AND representanteId = ?;`,
                           [
                             novoProdutosJSON,
+                            quantidadeItens,
+                            quantidadePecas,
+                            valorTotal,
+                            nomeEcommerce,
                             pedidoAtualId,
                             representanteId || "",
                           ]
@@ -1402,148 +1389,223 @@ const CardCarrinho: React.FC<CardCarrinhoProps> = ({ refreshKeyLojas }) => {
                   />
                 </HeaderCardEmpresa>
                 <ContainerPedido>
-                  {produtosLoja.map((produto, produtoIndex) => (
-                    // console.log("Produto(CardCarrinho):", produto),
-                    <ItemPedido
-                      key={`${cpfCnpj}-${
-                        produto.codigo || produtoIndex
-                      }-${refreshKey}`}
-                    >
-                      <ImagemProdutoContainer>
-                        <ImagemProduto
-                          source={
-                            typeof produto.imagem === "string"
-                              ? { uri: produto.imagem }
-                              : produto.imagem || { uri: "" }
-                          }
-                        />
-                      </ImagemProdutoContainer>
-                      <DetalhesPedido>
-                        <ContainerTextItemPedido>
-                          <TextEmpresa fontSize={14} weight={600}>
-                            {produto.codigo}
-                          </TextEmpresa>
-                          <TextEmpresa fontSize={14} weight={400}>
-                            {produto.nomeEcommerce}
-                          </TextEmpresa>
-                        </ContainerTextItemPedido>
-                        <ContainerTextItemPedido>
-                          <ContainerQuantidade>
-                            {produto.tipo === "R" && (
-                              <TouchableOpacity
-                                onPress={() =>
-                                  handleDecrement(
-                                    cpfCnpjSelecionado,
-                                    pedidoId,
-                                    produto.codigo,
-                                    representanteId
-                                  )
-                                }
-                              >
-                                <Ionicons
-                                  name="remove"
-                                  size={38}
-                                  color="black"
-                                />
-                              </TouchableOpacity>
-                            )}
-                            <InputQuantidade
-                              value={
-                                inputValues[
-                                  `${cpfCnpjSelecionado}-${produto.codigo}`
-                                ] || String(produto.quantidade)
+                  {produtosLoja.map(
+                    (produto, produtoIndex) => (
+                      console.log("Produto(CardCarrinho):", produto),
+                      (
+                        <ItemPedido
+                          key={`${cpfCnpj}-${
+                            produto.codigo || produtoIndex
+                          }-${refreshKey}`}
+                        >
+                          <ImagemProdutoContainer>
+                            <ImagemProduto
+                              source={
+                                typeof produto.imagem === "string"
+                                  ? { uri: produto.imagem }
+                                  : produto.imagem || { uri: "" }
                               }
-                              editable={produto.tipo === "R"}
-                              onChangeText={(text) => {
-                                // Atualiza apenas o valor temporário do input, sem alterar o estado global
-                                setInputValues((prev) => ({
-                                  ...prev,
-                                  [`${cpfCnpjSelecionado}-${produto.codigo}`]:
-                                    text,
-                                }));
-                              }}
-                              onEndEditing={() => {
-                                // Quando o usuário confirmar a edição, atualiza o estado global
-                                const newQuantity = parseInt(
-                                  inputValues[
-                                    `${cpfCnpjSelecionado}-${produto.codigo}`
-                                  ],
-                                  10
-                                );
-                                if (!isNaN(newQuantity) && newQuantity > 0) {
-                                  updateProductQuantity(
-                                    cpfCnpjSelecionado,
-                                    produto.codigo,
-                                    newQuantity
-                                  );
-                                }
-                              }}
-                              maxLength={8}
-                              keyboardType="number-pad"
-                              style={{ width: 100, textAlign: "center" }}
                             />
-                            {produto.tipo === "R" && (
-                              <TouchableOpacity
-                                onPress={() =>
-                                  handleIncrement(
-                                    cpfCnpjSelecionado,
-                                    pedidoId,
-                                    produto.codigo,
-                                    representanteId
-                                  )
-                                }
-                              >
-                                <Feather name="plus" size={38} color="black" />
-                              </TouchableOpacity>
-                            )}
-                            <Text style={{ fontSize: 18 }}>
-                              {(
-                                produto.quantidade *
-                                (produto.precoUnitarioComIPI > 0
-                                  ? produto.precoUnitarioComIPI
-                                  : produto.precoUnitario)
-                              ).toLocaleString("pt-BR", {
-                                style: "currency",
-                                currency: "BRL",
-                              })}
-                            </Text>
-                            {produto.percentualDesconto > 0 && (
-                              <Text style={{ fontSize: 10, color: "red" }}>
-                                ({produto.percentualDesconto}%)
-                              </Text>
-                            )}
-                          </ContainerQuantidade>
-                        </ContainerTextItemPedido>
-                      </DetalhesPedido>
+                          </ImagemProdutoContainer>
+                          <DetalhesPedido>
+                            <ContainerTextItemPedido>
+                              <TextEmpresa fontSize={14} weight={600}>
+                                {produto.codigo}
+                              </TextEmpresa>
+                              <TextEmpresa fontSize={14} weight={400}>
+                                {produto.nomeEcommerce}
+                              </TextEmpresa>
+                            </ContainerTextItemPedido>
+                            <ContainerTextItemPedido>
+                              <ContainerQuantidade>
+                                {produto.tipo === "R" && (
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleDecrement(
+                                        cpfCnpjSelecionado,
+                                        pedidoId,
+                                        produto.codigo,
+                                        representanteId
+                                      )
+                                    }
+                                  >
+                                    <Ionicons
+                                      name="remove"
+                                      size={38}
+                                      color="black"
+                                    />
+                                  </TouchableOpacity>
+                                )}
+                                <InputQuantidade
+                                  value={
+                                    inputValues[
+                                      `${cpfCnpjSelecionado}-${produto.codigo}`
+                                    ] || String(produto.quantidade)
+                                  }
+                                  editable={produto.tipo === "R"}
+                                  onChangeText={(text) => {
+                                    // Atualiza apenas o valor temporário do input, sem alterar o estado global
+                                    setInputValues((prev) => ({
+                                      ...prev,
+                                      [`${cpfCnpjSelecionado}-${produto.codigo}`]:
+                                        text,
+                                    }));
+                                  }}
+                                  onEndEditing={() => {
+                                    // Quando o usuário confirmar a edição, atualiza o estado global
+                                    const newQuantity = parseInt(
+                                      inputValues[
+                                        `${cpfCnpjSelecionado}-${produto.codigo}`
+                                      ],
+                                      10
+                                    );
+                                    if (
+                                      !isNaN(newQuantity) &&
+                                      newQuantity > 0
+                                    ) {
+                                      updateProductQuantity(
+                                        cpfCnpjSelecionado,
+                                        produto.codigo,
+                                        newQuantity
+                                      );
+                                    }
+                                  }}
+                                  maxLength={8}
+                                  keyboardType="number-pad"
+                                  style={{ width: 100, textAlign: "center" }}
+                                />
+                                {produto.tipo === "R" && (
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleIncrement(
+                                        cpfCnpjSelecionado,
+                                        pedidoId,
+                                        produto.codigo,
+                                        representanteId
+                                      )
+                                    }
+                                  >
+                                    <Feather
+                                      name="plus"
+                                      size={38}
+                                      color="black"
+                                    />
+                                  </TouchableOpacity>
+                                )}
+                                <Text style={{ fontSize: 18 }}>
+                                  {(
+                                    produto.quantidade *
+                                    (produto.precoUnitarioComIPI > 0
+                                      ? produto.precoUnitarioComIPI
+                                      : produto.precoUnitario)
+                                  ).toLocaleString("pt-BR", {
+                                    style: "currency",
+                                    currency: "BRL",
+                                  })}
+                                </Text>
+                                {produto.percentualDesconto > 0 && (
+                                  <Text style={{ fontSize: 10, color: "red" }}>
+                                    ({produto.percentualDesconto}%)
+                                  </Text>
+                                )}
+                              </ContainerQuantidade>
+                            </ContainerTextItemPedido>
+                          </DetalhesPedido>
 
-                      <TouchableOpacity
-                        onPress={() =>
-                          handleRemoveProduct(
-                            cpfCnpjSelecionado,
-                            produto.codigo,
-                            produto.idItemVenda
-                          )
-                        }
-                        activeOpacity={0.7}
-                        style={{
-                          backgroundColor: "#fff",
-                          right: 20,
-                          borderRadius: 10,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <FontAwesome
-                          name="trash"
-                          size={28}
-                          color="#ff4f45"
-                          style={{ padding: 10 }}
-                        />
-                      </TouchableOpacity>
-                    </ItemPedido>
-                  ))}
+                          <TouchableOpacity
+                            onPress={() =>
+                              handleRemoveProduct(
+                                cpfCnpjSelecionado,
+                                produto.codigo,
+                                produto.idItemVenda
+                              )
+                            }
+                            activeOpacity={0.7}
+                            style={{
+                              backgroundColor: "#fff",
+                              right: 20,
+                              borderRadius: 10,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <FontAwesome
+                              name="trash"
+                              size={28}
+                              color="#ff4f45"
+                              style={{ padding: 10 }}
+                            />
+                          </TouchableOpacity>
+                        </ItemPedido>
+                      )
+                    )
+                  )}
                 </ContainerPedido>
               </ContentCardEmpresa>
+              {/* <ContainerFooterCard>
+                {(() => {
+                  const breakdown = calcularBreakdownCarrinho(produtosLoja);
+                  return (
+                    <>
+                      <View
+                        style={{
+                          borderBottomWidth: 1,
+                          borderBottomColor: "#ddd",
+                          paddingBottom: 8,
+                        }}
+                      >
+                        <TextEmpresa fontSize={14} weight={400}>
+                          Preço Base:{" "}
+                          {breakdown.precoBase.toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })}
+                        </TextEmpresa>
+                        {breakdown.desconto > 0 && (
+                          <TextEmpresa
+                            fontSize={14}
+                            weight={400}
+                            style={{ color: "#27ae60" }}
+                          >
+                            Desconto: -{" "}
+                            {breakdown.desconto.toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            })}
+                          </TextEmpresa>
+                        )}
+                        <TextEmpresa fontSize={14} weight={400}>
+                          Subtotal:{" "}
+                          {breakdown.subtotal.toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })}
+                        </TextEmpresa>
+                        {breakdown.ipi > 0 && (
+                          <TextEmpresa fontSize={14} weight={400}>
+                            IPI:{" "}
+                            {breakdown.ipi.toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            })}
+                          </TextEmpresa>
+                        )}
+                      </View>
+                      <TextEmpresa
+                        fontSize={17}
+                        weight={700}
+                        style={{ color: "#006ffd" }}
+                      >
+                        TOTAL:{" "}
+                        {breakdown.total.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </TextEmpresa>
+                    </>
+                  );
+                })()}
+              </ContainerFooterCard> */}
               <ContainerFooterCard>
                 <TextEmpresa fontSize={17} weight={600}>
                   Subtotal:{" "}

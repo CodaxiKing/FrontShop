@@ -39,6 +39,7 @@ import { PedidoSincronizadoItem } from "@/context/interfaces/PedidoSincronizadoI
 import { formatarDataParaExibicao, parseDate } from "./useFormatAndParseDate";
 import { hasValue } from "@/helpers/hasValue";
 import { usePedidoCopia } from "@/context/PedidoCopiaContext";
+import { usePedidosFilter } from "./usePedidosFilter";
 const db = SQLite.openDatabaseSync("user_data.db");
 
 type ProdutoDoPedido = {
@@ -91,6 +92,8 @@ const TableSicronizacao = () => {
   const representanteId = userData?.representanteId;
 
   const { setSelectedOrderRaw } = usePedidoCopia();
+  
+  const { searchTerm, setSearchTerm, filteredPedidos } = usePedidosFilter(pedidosSincronizados);
 
   useEffect(() => {
     setLoading(true);
@@ -105,7 +108,7 @@ const TableSicronizacao = () => {
   const fetchPedidosSincronizados = async (representanteId: string) => {
     try {
       //Foi necessário pegar todos os campos para evitar erros nas chamadas de sincronização
-      const query = `SELECT PS.*, CC.RazaoSocial
+      const query = `SELECT PS.*, CC.RazaoSocial, CC.cpfCnpj
                       FROM PedidoSincronizado PS
                       LEFT JOIN CarteiraCliente CC ON PS.ClienteId = CC.ClienteId
                       WHERE PS.representanteId = ?`;
@@ -130,6 +133,7 @@ const TableSicronizacao = () => {
           };
         });
 
+      console.log("Pedidos SINCRONIZADOS (verificar cpfCnpj):", pedidosOrdenados.slice(0, 2));
       setPedidosSincronizados(pedidosOrdenados as PedidoSincronizadoItem[]);
       setLoading(false);
     } catch (error) {
@@ -161,6 +165,8 @@ const TableSicronizacao = () => {
           <SearchInput
             activeTab={activeTab}
             placeholder="Filtrar por Status, Data e Buscar (Dados Clientes)"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
           />
 
           {/* <ImportButton disabled onPress={handleOpenModal}>
@@ -198,6 +204,9 @@ const TableSicronizacao = () => {
               <TableCell flex={1.5}>
                 <TableText>Data Pedido</TableText>
               </TableCell>
+              <TableCell flex={1}>
+                <TableText>Tipo Ped</TableText>
+              </TableCell>
               <TableCell flex={5}>
                 <TableText>Cliente</TableText>
               </TableCell>
@@ -224,8 +233,8 @@ const TableSicronizacao = () => {
               </TableCell>
             </TableHeader>
             {loading && <LoadingPedidos />}
-            {pedidosSincronizados.length > 0 ? (
-              pedidosSincronizados.map((item) => {
+            {filteredPedidos.length > 0 ? (
+              filteredPedidos.map((item) => {
                 const isPrevenda = item.isPrevenda === true;
                 return (
                   <TableRow key={item.id}>
@@ -241,6 +250,9 @@ const TableSicronizacao = () => {
                       <TableText>
                         {formatDateToBR(item.dataCriacao) || "N/A"}
                       </TableText>
+                    </TableCell>
+                    <TableCell flex={1}>
+                      <TableText>{item.tipoPedido}</TableText>
                     </TableCell>
                     <TableCell flex={5}>
                       <TableText>{item.razaoSocial || "N/A"}</TableText>

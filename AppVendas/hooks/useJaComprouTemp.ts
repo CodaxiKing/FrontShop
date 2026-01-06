@@ -15,7 +15,9 @@ function baseCode(codigo: string) {
   return i > 0 ? s.slice(0, i) : s;
 }
 
-export function useJaComprouTemp(clienteId: string | number | null | undefined) {
+export function useJaComprouTemp(
+  clienteId: string | number | null | undefined
+) {
   const [setCodes, setSetCodes] = useState<Set<string>>(new Set());
   const key = useMemo(() => String(clienteId ?? ""), [clienteId]);
 
@@ -28,21 +30,26 @@ export function useJaComprouTemp(clienteId: string | number | null | undefined) 
         const set = new Set<string>((rows ?? []).map(String));
         if (!alive) return;
         setSetCodes(set);
-        if (__DEV__) {
-          console.log(`[useJaComprouTemp] cliente=${key} loaded=${set.size}`);
-        }
+        // if (__DEV__) {
+        //   console.log(`[useJaComprouTemp] cliente=${key} loaded=${set.size}`);
+        // }
       } catch (e) {
         console.error("[useJaComprouTemp] erro ao carregar TEMP:", e);
         setSetCodes(new Set());
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [key]);
 
-  const isJaComprou = useCallback((codigoProduto: string) => {
-    const b = baseCode(codigoProduto);
-    return setCodes.has(b);
-  }, [setCodes]);
+  const isJaComprou = useCallback(
+    (codigoProduto: string) => {
+      const b = baseCode(codigoProduto);
+      return setCodes.has(b);
+    },
+    [setCodes]
+  );
 
   return { isJaComprou, jaComprouSet: setCodes };
 }

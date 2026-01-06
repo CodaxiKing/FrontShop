@@ -173,6 +173,7 @@ const PixModal: React.FC<PixModalProps> = ({
       const meiosPagamento = JSON.stringify([
         {
           tipoPagamento: 1,
+          tipoPedido: "P",
           formaPagamento: "",
           pixComprovanteTransacao: transactionProof,
           quantidadeDuplicata: 0,
@@ -353,7 +354,7 @@ const PixModal: React.FC<PixModalProps> = ({
           null, // dataPedidoSaldo
           false, // quebraPreVenda
           null, // dataPrevistaPA
-          "", // tipoPedido
+          "P", // tipoPedido
           enderecoEntrega, // enderecoEntrega
           numeroEntrega, // numeroEntrega
           cepEntrega, // cepEntrega
@@ -416,6 +417,7 @@ const PixModal: React.FC<PixModalProps> = ({
       const meiosPagamento = JSON.stringify([
         {
           tipoPagamento: 1,
+          tipoPedido: "P",
           formaPagamento: "",
           pixComprovanteTransacao: transactionProof,
           quantidadeDuplicata: 0,
@@ -606,7 +608,7 @@ const PixModal: React.FC<PixModalProps> = ({
             null, // dataPedidoSaldo
             false /* quebraPreVenda */,
             null /* dataPrevistaPA */,
-            "" /* tipoPedido */,
+            "P" /* tipoPedido */,
             enderecoEntrega, // enderecoEntrega
             numeroEntrega, // numeroEntrega
             cepEntrega, // cepEntrega
@@ -672,7 +674,7 @@ const PixModal: React.FC<PixModalProps> = ({
             null, // dataPedidoSaldo
             true /* quebraPreVenda */,
             null /* dataPrevistaPA */,
-            "" /* tipoPedido */,
+            "P" /* tipoPedido */,
             enderecoEntrega, // enderecoEntrega
             numeroEntrega, // numeroEntrega
             cepEntrega, // cepEntrega

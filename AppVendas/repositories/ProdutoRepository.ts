@@ -3,7 +3,7 @@ import {
   queryBuscarCatalogoPaginado,
   queryBuscarCatalogoPorTermo,
   querySelectCodigoEImagens,
-  queryCountCatalogo
+  queryCountCatalogo,
 } from "@/database/queries/catalogoQueries";
 import {
   queryBuscarTabelaPrecoPorTermo,
@@ -70,14 +70,17 @@ export const ProdutoRepository = {
         query = (queryBuscarCatalogoPaginado as any)(condicionalExtra);
       } else {
         // base é string => injeta condicionalExtra
-        query = attachCondicionalExtra(String(queryBuscarCatalogoPaginado), condicionalExtra);
+        query = attachCondicionalExtra(
+          String(queryBuscarCatalogoPaginado),
+          condicionalExtra
+        );
       }
 
-      if (DEBUG_SQL) {
-        console.log(`[SQL catálogo '${tabelaPreco}'] condicionalExtra=`, condicionalExtra);
-        console.log(`[SQL catálogo '${tabelaPreco}'] final=`, query.replace(/\s+/g, " ").trim());
-        console.log(`[SQL catálogo '${tabelaPreco}']=`, query);
-      }
+      // if (DEBUG_SQL) {
+      //   console.log(`[SQL catálogo '${tabelaPreco}'] condicionalExtra=`, condicionalExtra);
+      //   console.log(`[SQL catálogo '${tabelaPreco}'] final=`, query.replace(/\s+/g, " ").trim());
+      //   console.log(`[SQL catálogo '${tabelaPreco}']=`, query);
+      // }
 
       const result = await executeQuery(query, [PAGE_SIZE, offset]);
       return result.map(parseProduto);
@@ -87,17 +90,24 @@ export const ProdutoRepository = {
       if (typeof (queryBuscarTabelaPrecoPaginado as any) === "function") {
         query = (queryBuscarTabelaPrecoPaginado as any)(condicionalExtra);
       } else {
-        query = attachCondicionalExtra(String(queryBuscarTabelaPrecoPaginado), condicionalExtra);
+        query = attachCondicionalExtra(
+          String(queryBuscarTabelaPrecoPaginado),
+          condicionalExtra
+        );
       }
 
-      const result = await executeQuery(query, [tabelaPreco, PAGE_SIZE, offset]);
+      const result = await executeQuery(query, [
+        tabelaPreco,
+        PAGE_SIZE,
+        offset,
+      ]);
 
-       if (DEBUG_SQL) {
-        console.log(`[SQL TabelaPreco '${tabelaPreco}'] condicionalExtra=`, condicionalExtra);
-        console.log(`[SQL TabelaPreco '${tabelaPreco}'] final=`, query.replace(/\s+/g, " ").trim());
-        console.log(`[SQL TabelaPreco '${tabelaPreco}']=`, query);
-        //console.log(`[SQL TabelaPreco Result'${tabelaPreco}']=`, result);
-      }
+      //  if (DEBUG_SQL) {
+      //   console.log(`[SQL TabelaPreco '${tabelaPreco}'] condicionalExtra=`, condicionalExtra);
+      //   console.log(`[SQL TabelaPreco '${tabelaPreco}'] final=`, query.replace(/\s+/g, " ").trim());
+      //   console.log(`[SQL TabelaPreco '${tabelaPreco}']=`, query);
+      //   //console.log(`[SQL TabelaPreco Result'${tabelaPreco}']=`, result);
+      // }
 
       return result.map(parseProduto);
     }
@@ -121,10 +131,13 @@ export const ProdutoRepository = {
     const parametros = camposBusca.map(() => `%${searchTerm.toUpperCase()}%`);
     const query = queryBuscarCatalogoPorTermo(condicoesBusca, condicionalExtra);
 
-    if (DEBUG_SQL) {
-      console.log("[SQL catálogo:buscar] condicionalExtra=", condicionalExtra);
-      console.log("[SQL catálogo:buscar] final=", query.replace(/\s+/g, " ").trim());
-    }
+    // if (DEBUG_SQL) {
+    //   console.log("[SQL catálogo:buscar] condicionalExtra=", condicionalExtra);
+    //   console.log(
+    //     "[SQL catálogo:buscar] final=",
+    //     query.replace(/\s+/g, " ").trim()
+    //   );
+    // }
 
     const result = await executeQuery(query, parametros);
     return result.map(parseProduto);
@@ -146,7 +159,7 @@ export const ProdutoRepository = {
     ];
 
     const condicoesBusca = camposBusca
-      .map((campo) => `UPPER(${campo}) LIKE ?`)
+      .map((campo) => `UPPER(tpp.${campo}) LIKE ?`)
       .join(" OR ");
 
     const parametros = [
@@ -154,12 +167,21 @@ export const ProdutoRepository = {
       ...camposBusca.map(() => `%${searchTerm.toUpperCase()}%`),
     ];
 
-    const query = queryBuscarTabelaPrecoPorTermo(condicoesBusca, condicionalExtra);
+    const query = queryBuscarTabelaPrecoPorTermo(
+      condicoesBusca,
+      condicionalExtra
+    );
 
-    if (DEBUG_SQL) {
-      console.log("[SQL tabelaPreço:buscar] condicionalExtra=", condicionalExtra);
-      console.log("[SQL tabelaPreço:buscar] final=", query.replace(/\s+/g, " ").trim());
-    }
+    // if (DEBUG_SQL) {
+    //   console.log(
+    //     "[SQL tabelaPreço:buscar] condicionalExtra=",
+    //     condicionalExtra
+    //   );
+    //   console.log(
+    //     "[SQL tabelaPreço:buscar] final=",
+    //     query.replace(/\s+/g, " ").trim()
+    //   );
+    // }
 
     const result = await executeQuery(query, parametros);
     return result.map(parseProduto);
@@ -181,7 +203,9 @@ export const ProdutoRepository = {
       const base = Number(baseRow?.n ?? 0);
       const filtered = Number(withRow?.n ?? 0);
 
-      console.log(`[DEBUG COUNT catálogo] base=${base} filtered=${filtered} where=(${whereSql})`);
+      // console.log(
+      //   `[DEBUG COUNT catálogo] base=${base} filtered=${filtered} where=(${whereSql})`
+      // );
       return { base, filtered };
     } else {
       const baseSql = `SELECT COUNT(*) AS n FROM TabelaPrecoProduto WHERE codigoTabelaPreco  = ?`;
@@ -195,18 +219,18 @@ export const ProdutoRepository = {
       const base = Number(baseRow?.n ?? 0);
       const filtered = Number(withRow?.n ?? 0);
 
-      console.log(
-        `[DEBUG COUNT tabela] tabela=${tabelaPreco} base=${base} filtered=${filtered} where=(${whereSql})`
-      );
+      // console.log(
+      //   `[DEBUG COUNT tabela] tabela=${tabelaPreco} base=${base} filtered=${filtered} where=(${whereSql})`
+      // );
       return { base, filtered };
     }
   },
   async debuggGetAllNotFiltered() {
-     const baseSql = `SELECT * AS n FROM Catalogo`;
-     const result = await executeQuery(baseSql);
-      return result.map(parseProduto);
+    const baseSql = `SELECT * AS n FROM Catalogo`;
+    const result = await executeQuery(baseSql);
+    return result.map(parseProduto);
   },
-  
+
   async listarCodigosEImagens() {
     // para ImageResyncService: ler do Catalogo local e repovoar ProdutoImagem
     return await executeQuery<{ codigo: string; imagens: string }>(
@@ -219,6 +243,4 @@ export const ProdutoRepository = {
     const r = await executeQuery<any>(queryCountCatalogo, []);
     return Number(r?.[0]?.total ?? 0);
   },
-
-
 };

@@ -100,6 +100,31 @@ interface ProdutoQuantidadeContextValue {
     tipo?: string
   ) => Promise<void>;
   clear: () => void;
+
+  aplicarDistribuicaoProduto: (
+    produto: {
+      codigo: string;
+      codigoMarca?: string;
+      nomeEcommerce?: string;
+      precoUnitario?: number;
+      precoComIPI?: number;
+      imagens?: any[];
+      descricaoSubGrupo?: string;
+      dataPrevistaPA?: string;
+    },
+    distribuicao: Array<{ cpfCnpj: string; quantidade: number }>,
+    ctx: {
+      cpfCnpjPrincipal: string;
+      clienteId: string;
+      razaoSocial: string;
+      representanteId: string;
+      selectedTabelaPreco?: { value?: string };
+      selectedClient: any; // SelectedClient do teu context
+    }
+  ) => Promise<{
+    ok: boolean;
+    failed: Array<{ cpfCnpj: string; reason: string }>;
+  }>;
 }
 
 const ProdutoQuantidadeContext = createContext<ProdutoQuantidadeContextValue>({
@@ -109,6 +134,7 @@ const ProdutoQuantidadeContext = createContext<ProdutoQuantidadeContextValue>({
   decrementar: async () => {},
   setQuantidade: async () => {},
   clear: () => {},
+  aplicarDistribuicaoProduto: async () => ({ ok: false, failed: [] }),
 });
 
 export const useProdutoQuantidade = () => useContext(ProdutoQuantidadeContext);
@@ -220,9 +246,6 @@ export const ProdutoQuantidadeProvider: React.FC<{
     pendingChangesRef.current.clear();
 
     try {
-      console.log(
-        `${getHoraAtualComMs()}[eventBus]-> ["carrinho:changing"]: CnpjCpf[${cpfCnpj}] Cliente[${clienteId}] Representante[${representanteId}]`
-      );
       eventBus.emit("carrinho:changing", { cpfCnpj, cliente: clienteId });
 
       // 1) Se não temos pedidoId ainda, tentar buscar UMA vez
@@ -415,9 +438,6 @@ export const ProdutoQuantidadeProvider: React.FC<{
       // evento de carrinho atualizado
       isFlushingRef.current = false;
       setTimeout(() => {
-        console.log(
-          `${getHoraAtualComMs()}[eventBus]-> ["carrinho:changed" ]: CnpjCpf[${cpfCnpj}] Cliente[${clienteId}] Representante[${representanteId}]`
-        );
         eventBus.emit("carrinho:changed", {
           phase: "after-update",
           pedidoId: pedidoIdRef.current,
@@ -528,6 +548,271 @@ export const ProdutoQuantidadeProvider: React.FC<{
     ]
   );
 
+  const aplicarDistribuicaoProduto: ProdutoQuantidadeContextValue["aplicarDistribuicaoProduto"] =
+    useCallback(
+      async (produto, distribuicao, ctx) => {
+        const failed: Array<{ cpfCnpj: string; reason: string }> = [];
+
+        try {
+          const {
+            cpfCnpjPrincipal,
+            clienteId,
+            razaoSocial,
+            representanteId,
+            selectedTabelaPreco,
+            selectedClient,
+          } = ctx;
+
+          // guarda contexto (mantém padrão do Provider)
+          rememberContext(
+            cpfCnpjPrincipal,
+            clienteId,
+            razaoSocial,
+            representanteId,
+            representanteId,
+            selectedTabelaPreco,
+            selectedClient
+          );
+
+          // sanitiza distribuicao (cpfCnpj válido, qtd >= 0)
+          const dist = (distribuicao ?? [])
+            .filter((d) => !!d?.cpfCnpj)
+            .map((d) => ({
+              cpfCnpj: String(d.cpfCnpj),
+              quantidade: Math.max(Number(d.quantidade ?? 0), 0),
+            }));
+
+          // nada pra fazer? (ex: tudo 0)
+          // aqui ainda pode precisar remover de todas as lojas existentes -> então não retorna cedo
+
+          // 1) Busca pedido existente
+          const rows = await buscarPedido(
+            cpfCnpjPrincipal,
+            clienteId,
+            representanteId
+          );
+          const pedidoExistente = rows?.[0] ?? null;
+
+          // helper: extrai imagem
+          const imagem =
+            produto?.imagens?.[0]?.imagemUrl ??
+            (produto as any)?.productImage ??
+            "";
+
+          // helper: cria payload do produto
+          const makeProduto = (qtd: number) => ({
+            codigo: String(produto.codigo),
+            codigoMarca: String(produto.codigoMarca ?? ""),
+            nomeEcommerce: String(produto.nomeEcommerce ?? ""),
+            quantidade: qtd,
+            precoUnitario: Number(produto.precoUnitario ?? 0),
+            precoUnitarioComIPI: Number(produto.precoComIPI ?? 0),
+            imagem: String(imagem ?? ""),
+            tipo: "R",
+            descricaoSubGrupo: String(produto.descricaoSubGrupo ?? ""),
+            dataPrevistaPA: String(produto.dataPrevistaPA ?? ""),
+          });
+
+          // helper: aplica/substitui COMPLETAMENTE o produto em buckets
+          const applyToBuckets = (buckets: any[]) => {
+            const codigoAlvo = String(produto.codigo);
+
+            // index rápido
+            const byCpf = new Map<string, any>();
+            for (const b of buckets) {
+              if (b?.cpfCnpj) byCpf.set(String(b.cpfCnpj), b);
+            }
+
+            // 1) remove produto alvo de TODOS os buckets (substituição completa)
+            for (const b of buckets) {
+              const arr = Array.isArray(b?.produtos) ? b.produtos : [];
+              b.produtos = arr.filter(
+                (p: any) => String(p?.codigo) !== codigoAlvo
+              );
+            }
+
+            // 2) re-aplica apenas onde qtd > 0
+            for (const d of dist) {
+              if (d.quantidade <= 0) continue;
+
+              let bucket = byCpf.get(d.cpfCnpj);
+              if (!bucket) {
+                bucket = { cpfCnpj: d.cpfCnpj, produtos: [] };
+                buckets.push(bucket);
+                byCpf.set(d.cpfCnpj, bucket);
+              }
+
+              if (!Array.isArray(bucket.produtos)) bucket.produtos = [];
+              bucket.produtos.push(makeProduto(d.quantidade));
+            }
+
+            // (opcional) se bucket ficou vazio, pode remover bucket inteiro (eu recomendo remover)
+            const filtered = buckets.filter(
+              (b) => Array.isArray(b?.produtos) && b.produtos.length > 0
+            );
+
+            return filtered;
+          };
+
+          // 2) Se não existe pedido -> INSERT
+          if (!pedidoExistente) {
+            const bucketsInicial = applyToBuckets([]);
+
+            // se tudo ficou vazio (ex: usuário confirmou tudo 0), então não cria pedido
+            if (bucketsInicial.length === 0) {
+              return { ok: true, failed: [] };
+            }
+
+            const produtosStr = JSON.stringify(bucketsInicial);
+
+            const quantidadePecas = bucketsInicial.reduce(
+              (acc, b) =>
+                acc +
+                (b.produtos ?? []).reduce(
+                  (a: number, p: any) => a + (p.quantidade || 0),
+                  0
+                ),
+              0
+            );
+
+            const quantidadeItens = bucketsInicial.reduce(
+              (acc, b) => acc + (b.produtos ?? []).length,
+              0
+            );
+
+            const valorTotal = bucketsInicial.reduce(
+              (acc, b) =>
+                acc +
+                (b.produtos ?? []).reduce(
+                  (a: number, p: any) =>
+                    a + (p.quantidade || 0) * (p.precoUnitario || 0),
+                  0
+                ),
+              0
+            );
+
+            const tabelaPreco = String(selectedTabelaPreco?.value ?? "999999");
+
+            const endereco = Array.isArray(selectedClient?.enderecos)
+              ? selectedClient.enderecos[0] || {}
+              : {};
+
+            await inserirPedido(
+              {
+                clienteId: selectedClient.clienteId,
+                cpfCnpj: selectedClient.cpfCnpj,
+                razaoSocial: selectedClient.razaoSocial,
+                enderecoCompleto: selectedClient.enderecoCompleto ?? "",
+                enderecos: JSON.stringify(selectedClient.enderecos ?? []),
+              },
+              endereco,
+              produtosStr,
+              quantidadeItens,
+              valorTotal,
+              tabelaPreco,
+              produto?.nomeEcommerce ?? "",
+              representanteId,
+              representanteId
+            );
+
+            // cacheia id
+            const rows2 = await buscarPedido(
+              cpfCnpjPrincipal,
+              clienteId,
+              representanteId
+            );
+            const novo = rows2?.[0];
+            pedidoIdRef.current = novo?.id ? String(novo.id) : null;
+
+            // avisa UI
+            eventBus.emit("carrinho:changed", {
+              phase: "after-update",
+              pedidoId: pedidoIdRef.current,
+            });
+
+            return { ok: failed.length === 0, failed };
+          }
+
+          // 3) Existe pedido -> UPDATE
+          const bucketsAtuais = pedidoExistente?.produtos
+            ? JSON.parse(pedidoExistente.produtos)
+            : [];
+
+          const bucketsFinal = applyToBuckets(
+            Array.isArray(bucketsAtuais) ? bucketsAtuais : []
+          );
+
+          // se removemos tudo, pode virar carrinho vazio:
+          if (bucketsFinal.length === 0) {
+            // aqui você pode: atualizarPedido com "[]" e totais zero
+            // ou chamar uma rotina de limpar pedido (se existir no repo)
+          }
+
+          const quantidadePecas = bucketsFinal.reduce(
+            (acc, b) =>
+              acc +
+              (b.produtos ?? []).reduce(
+                (a: number, p: any) => a + (p.quantidade || 0),
+                0
+              ),
+            0
+          );
+
+          const quantidadeItens = bucketsFinal.reduce(
+            (acc, b) => acc + (b.produtos ?? []).length,
+            0
+          );
+
+          const valorTotal = bucketsFinal.reduce(
+            (acc, b) =>
+              acc +
+              (b.produtos ?? []).reduce(
+                (a: number, p: any) =>
+                  a + (p.quantidade || 0) * (p.precoUnitario || 0),
+                0
+              ),
+            0
+          );
+
+          const tabelaPreco = String(selectedTabelaPreco?.value ?? "999999");
+
+          const produtosStr = JSON.stringify(bucketsFinal);
+
+          // garante pedidoId
+          pedidoIdRef.current = pedidoExistente?.id
+            ? String(pedidoExistente.id)
+            : pedidoIdRef.current;
+
+          await atualizarPedido(
+            produtosStr,
+            produto?.nomeEcommerce ?? "",
+            quantidadeItens,
+            quantidadePecas,
+            valorTotal,
+            tabelaPreco,
+            pedidoIdRef.current!
+          );
+
+          eventBus.emit("carrinho:changed", {
+            phase: "after-update",
+            pedidoId: pedidoIdRef.current,
+          });
+
+          return { ok: failed.length === 0, failed };
+        } catch (e: any) {
+          console.warn(
+            "[ProdutoQuantidade] aplicarDistribuicaoProduto error:",
+            e
+          );
+          return {
+            ok: false,
+            failed: [{ cpfCnpj: "ALL", reason: String(e?.message ?? e) }],
+          };
+        }
+      },
+      [rememberContext]
+    );
+
   const setQuantidade: ProdutoQuantidadeContextValue["setQuantidade"] =
     useCallback(
       async (
@@ -590,7 +875,6 @@ export const ProdutoQuantidadeProvider: React.FC<{
 
       // Se o payload indica que o carrinho ficou vazio, zerar as quantidades
       if (payload?.phase === "after-update" && payload?.pedidoId === null) {
-        console.log("Carrinho ficou vazio - zerando quantidades");
         setQuantidades({});
         pendingChangesRef.current.clear();
         pedidoIdRef.current = null;
@@ -643,6 +927,7 @@ export const ProdutoQuantidadeProvider: React.FC<{
       decrementar,
       setQuantidade,
       clear,
+      aplicarDistribuicaoProduto,
     }),
     [
       quantidades,
@@ -651,6 +936,7 @@ export const ProdutoQuantidadeProvider: React.FC<{
       decrementar,
       setQuantidade,
       clear,
+      aplicarDistribuicaoProduto,
     ]
   );
 

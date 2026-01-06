@@ -253,6 +253,7 @@ const CreditCardModal: React.FC<CreditCardModalProps> = ({
       const meiosPagamento = JSON.stringify(
         cards.map((card) => ({
           tipoPagamento: 1,
+          tipoPedido: "P",
           formaPagamento: "",
           pixComprovanteTransacao: "",
           quantidadeDuplicata: 0,
@@ -436,7 +437,7 @@ const CreditCardModal: React.FC<CreditCardModalProps> = ({
           null, // dataPedidoSaldo
           false, // quebraPreVenda
           null, // dataPrevistaPA
-          "", // tipoPedido
+          "P", // tipoPedido
           enderecoEntrega, // enderecoEntrega
           numeroEntrega, // numeroEntrega
           cepEntrega, // cepEntrega
@@ -499,6 +500,7 @@ const CreditCardModal: React.FC<CreditCardModalProps> = ({
       const meiosPagamento = JSON.stringify(
         cards.map((card) => ({
           tipoPagamento: 1,
+          tipoPedido: "P",
           formaPagamento: "",
           pixComprovanteTransacao: "",
           quantidadeDuplicata: 0,
@@ -691,7 +693,7 @@ const CreditCardModal: React.FC<CreditCardModalProps> = ({
             null, // dataPedidoSaldo
             false /* quebraPreVenda */,
             null /* dataPrevistaPA */,
-            "" /* tipoPedido */,
+            "P" /* tipoPedido */,
             enderecoEntrega, // enderecoEntrega
             numeroEntrega, // numeroEntrega
             cepEntrega, // cepEntrega
@@ -761,7 +763,7 @@ const CreditCardModal: React.FC<CreditCardModalProps> = ({
             null, // dataPedidoSaldo
             true /* quebraPreVenda */,
             null /* dataPrevistaPA */,
-            "" /* tipoPedido */,
+            "P" /* tipoPedido */,
             enderecoEntrega, // enderecoEntrega
             numeroEntrega, // numeroEntrega
             cepEntrega, // cepEntrega

@@ -84,7 +84,7 @@ export function getProdutoData(
       (produto as any).productImage.trim()) ||
     (Array.isArray(imagens) && imagens.length > 0 ? imagens[0] : undefined);
 
-  const inventoryQtd = Number((produto as any)?.inventoryQtd) || 0;
+  const inventoryQtd = Number((produto as any)?.quantidadeEstoquePA) || 0;
 
   const isFavorite =
     produtoId && fav?.isFavoriteById ? !!fav.isFavoriteById(produtoId) : false;

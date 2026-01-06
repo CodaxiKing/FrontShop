@@ -3,7 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FavoritoService, CtxFavorito } from "@/services/FavoritoService";
 import { eventBus, getHoraAtualComMs } from "@/core/eventBus";
 
-export function useFavoritos(produtoIds: (string | number)[], ctx: CtxFavorito) {
+export function useFavoritos(
+  produtoIds: (string | number)[],
+  ctx: CtxFavorito
+) {
   const [mapFav, setMapFav] = useState<Record<string, boolean>>({});
   const [version, setVersion] = useState(0); // incrementa a cada mudança visual necessária
 
@@ -16,8 +19,6 @@ export function useFavoritos(produtoIds: (string | number)[], ctx: CtxFavorito) 
     () => JSON.stringify(produtoIds.map(String).sort()),
     [produtoIds]
   );
-
-  console.log(`[${getHoraAtualComMs()}]: ${JSON.stringify(ctx)}`)
 
   // Set com ids da página (lookup O(1))
   const idsSetRef = useRef<Set<string>>(new Set());

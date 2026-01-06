@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import {
   StyledModal,
@@ -22,8 +22,154 @@ import { useMenuContext } from "@/context/MenuProvider";
 
 import * as SQLite from "expo-sqlite";
 import { Endereco } from "@/components/CardCarrinho/IconesCardCarrinho";
+import AuthContext from "@/context/AuthContext";
 
 const db = SQLite.openDatabaseSync("user_data.db");
+
+function safeJsonParse<T>(raw: any, fallback: T): T {
+  try {
+    if (raw == null) return fallback;
+    if (typeof raw === "string") return JSON.parse(raw) as T;
+    return raw as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function uniq(arr: string[]) {
+  return Array.from(new Set(arr.filter(Boolean)));
+}
+
+function norm(v: any) {
+  return String(v ?? "").trim();
+}
+
+function calcTotals(produtosPorLoja: any[]) {
+  const all = (produtosPorLoja ?? []).flatMap((b) => b?.produtos ?? []);
+  const quantidadeItens = all.length;
+  const quantidadePecas = all.reduce(
+    (acc, p) => acc + (Number(p?.quantidade) || 0),
+    0
+  );
+  const valorTotal = all.reduce(
+    (acc, p) =>
+      acc + (Number(p?.quantidade) || 0) * (Number(p?.precoUnitario) || 0),
+    0
+  );
+
+  const nomeEcommerce = all?.[all.length - 1]?.nomeEcommerce ?? "";
+  return { quantidadeItens, quantidadePecas, valorTotal, nomeEcommerce };
+}
+
+/**
+ * Atualiza o carrinho (DB) com as lojas selecionadas.
+ * Regra: novas lojas duplicam produtos do pai (cnpjCliente).
+ * Lojas desmarcadas removem bucket do DB.
+ */
+async function persistSelectedStoresInCartDB(params: {
+  cnpjCliente: string;
+  representanteId: string;
+  selectedStores: string[];
+}) {
+  const { cnpjCliente, representanteId, selectedStores } = params;
+
+  // pega pedido atual
+  const q = `
+    SELECT id, produtos
+    FROM NovoPedido
+    WHERE cpfCnpj = ? AND representanteId = ?
+    ORDER BY id DESC
+    LIMIT 1;
+  `;
+  const rows: any[] = await db.getAllAsync(q, [cnpjCliente, representanteId]);
+
+  if (!rows?.length) {
+    // se não existe pedido, não tem o que atualizar
+    // (se quiser, pode criar um pedido vazio aqui - mas você não pediu isso)
+    return;
+  }
+
+  const pedidoId = rows[0]?.id;
+  const produtosRaw = rows[0]?.produtos;
+
+  let produtosPorLoja = safeJsonParse<any[]>(produtosRaw, []);
+  if (!Array.isArray(produtosPorLoja)) produtosPorLoja = [];
+
+  // garante pai sempre incluso
+  const selected = uniq([cnpjCliente, ...selectedStores].map(norm)).filter(
+    Boolean
+  );
+
+  // bucket do pai (fonte da duplicação)
+  const paiCpf = norm(cnpjCliente);
+
+  // tenta achar bucket com cpfCnpj igual ao pai
+  let bucketPai = produtosPorLoja.find((b) => norm(b?.cpfCnpj) === paiCpf);
+
+  // se não achou, pega o primeiro bucket que tem produtos
+  if (!bucketPai) {
+    bucketPai = produtosPorLoja.find(
+      (b) => Array.isArray(b?.produtos) && b.produtos.length > 0
+    );
+  }
+
+  // fallback final: primeiro bucket do array
+  if (!bucketPai) {
+    bucketPai = produtosPorLoja[0];
+  }
+
+  const produtosPai = Array.isArray(bucketPai?.produtos)
+    ? bucketPai.produtos
+    : [];
+
+  // 1) manter somente selecionados
+  let next = produtosPorLoja.filter((b) => selected.includes(norm(b?.cpfCnpj)));
+
+  // 2) adicionar buckets que faltam duplicando produtos do pai
+  for (const cpf of selected) {
+    const exists = next.some((b) => norm(b?.cpfCnpj) === cpf);
+    if (!exists) {
+      next.push({
+        cpfCnpj: cpf,
+        produtos: [...produtosPai], // ✅ DUPLICA produtos do pai (regra atual)
+        enderecoEntrega: null,
+      });
+    }
+  }
+
+  // 3) opcional: consolidar por cpfCnpj (evita duplicado)
+  const seen = new Set<string>();
+  next = next.filter((b) => {
+    const cpf = norm(b?.cpfCnpj);
+    if (!cpf) return false;
+    if (seen.has(cpf)) return false;
+    seen.add(cpf);
+    return true;
+  });
+
+  const { quantidadeItens, quantidadePecas, valorTotal, nomeEcommerce } =
+    calcTotals(next);
+
+  const update = `
+    UPDATE NovoPedido
+    SET produtos = ?,
+        quantidadeItens = ?,
+        quantidadePecas = ?,
+        valorTotal = ?,
+        nomeEcommerce = ?
+    WHERE id = ? AND representanteId = ?;
+  `;
+
+  await db.runAsync(update, [
+    JSON.stringify(next),
+    quantidadeItens,
+    quantidadePecas,
+    valorTotal,
+    nomeEcommerce,
+    pedidoId,
+    representanteId,
+  ]);
+}
 
 interface ModalLojasProps {
   visible: boolean;
@@ -51,6 +197,9 @@ const ModalLojas: React.FC<ModalLojasProps> = ({
   // const { lojasSelecionadas, setLojasSelecionadas } = useMenuContext();
   const { getLojasSelecionadasParaCliente, setLojasParaCliente } =
     useMenuContext();
+
+  const { userData } = useContext(AuthContext);
+  const representanteId = String(userData?.representanteId ?? "");
 
   useEffect(() => {
     if (!visible || !cnpjCliente) return;
@@ -109,17 +258,32 @@ const ModalLojas: React.FC<ModalLojasProps> = ({
     }
   };
 
-  const handleConfirmSelection = () => {
-    if (selectedStores.length > 0 && cnpjCliente) {
-      // let produtoLojas = JSON.parse(pedidos.produtos);
+  const handleConfirmSelection = async () => {
+    if (!cnpjCliente) return;
 
-      setLojasParaCliente(cnpjCliente, selectedStores); // Atualiza o contexto com as lojas selecionadas
-      //alert(`Lojas selecionadas: ${selectedStores.join(", ")}`);
-      setRefreshKeyLojas((prev) => prev + 1); // Força recarregar carrinho
+    if (selectedStores.length === 0) {
+      Alert.alert("Atenção", "Selecione pelo menos uma loja.");
+      return;
+    }
+
+    try {
+      // ✅ 1) persistir no DB (fonte da verdade)
+      await persistSelectedStoresInCartDB({
+        cnpjCliente,
+        representanteId,
+        selectedStores,
+      });
+
+      // ✅ 2) manter contexto atualizado (continua igual)
+      setLojasParaCliente(cnpjCliente, selectedStores);
+
+      // ✅ 3) forçar recarregar carrinho
+      setRefreshKeyLojas((prev) => prev + 1);
 
       onClose();
-    } else {
-      Alert.alert("Atenção", "Selecione pelo menos uma loja.");
+    } catch (e) {
+      console.log("Erro ao salvar lojas no DB:", e);
+      Alert.alert("Erro", "Não foi possível salvar as lojas selecionadas.");
     }
   };
 
@@ -181,7 +345,8 @@ const ModalLojas: React.FC<ModalLojasProps> = ({
                               : false
                           }
                         >
-                          {store.cpfCnpj} - {store.nomeReduzido}
+                          {store.cpfCnpj} - {store.razaoSocial}
+                          {/* {store.cpfCnpj} - {store.nomeReduzido} */}
                         </StoreText>
                       </StoreOption>
                     ))

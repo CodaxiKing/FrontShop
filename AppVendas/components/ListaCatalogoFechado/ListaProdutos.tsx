@@ -25,11 +25,14 @@ interface ListaProdutosProps {
   // ↓ favoritos
   favDeps?: FavoritoDeps; // { isFavoriteById, toggleFavoriteById }
   favoritesMap?: Record<string, boolean>; // usado para calcular favKey por item
-  favoritesVersion?: number;             // força re-render dos itens visíveis
+  favoritesVersion?: number; // força re-render dos itens visíveis
   listKey?: string;
 
   // injeta "já comprou"
   isJaComprou?: (codigoProduto: string) => boolean;
+
+  onOpenLojasColigadas?: (produto: CatalogoItem) => void;
+  hasColigadas?: boolean;
 }
 
 const ListaProdutos: React.FC<ListaProdutosProps> = ({
@@ -43,7 +46,9 @@ const ListaProdutos: React.FC<ListaProdutosProps> = ({
   favoritesMap,
   favoritesVersion = 0,
   listKey,
-  isJaComprou, 
+  isJaComprou,
+  onOpenLojasColigadas,
+  hasColigadas,
 }) => {
   const isDraggingRef = useRef(false);
   const lastEndReachedRef = useRef(0);
@@ -64,23 +69,37 @@ const ListaProdutos: React.FC<ListaProdutosProps> = ({
       const produtoId = String((item as any)?.id ?? item.codigo);
 
       const favKey =
-        favoritesMap && Object.prototype.hasOwnProperty.call(favoritesMap, produtoId)
-          ? favoritesMap[produtoId] ? 1 : 0
+        favoritesMap &&
+        Object.prototype.hasOwnProperty.call(favoritesMap, produtoId)
+          ? favoritesMap[produtoId]
+            ? 1
+            : 0
           : 0;
 
       return (
         <CardProdutoCatalogo
+          key={`${item.codigo}-${hasColigadas ? "C" : "S"}`}
           produto={item}
           catalogOpen={catalogOpen}
           // disableNavigate={isDraggingRef.current}
           favDeps={favDeps}
           favKey={favKey}
-          isJaComprou={isJaComprou}   
+          isJaComprou={isJaComprou}
+          // Chamador do evento de abrir lojas coligadas
+          onOpenLojasColigadas={onOpenLojasColigadas}
+          hasColigadas={hasColigadas}
         />
       );
     },
-    [catalogOpen, favDeps, favoritesMap, isJaComprou]
-  );   
+    [
+      catalogOpen,
+      favDeps,
+      favoritesMap,
+      isJaComprou,
+      onOpenLojasColigadas,
+      hasColigadas,
+    ]
+  );
 
   const keyExtractor = useCallback(
     (item: CatalogoItem, index: number) =>
@@ -89,10 +108,7 @@ const ListaProdutos: React.FC<ListaProdutosProps> = ({
   );
 
   const columnStyle = useMemo(
-    () =>
-      numColumns > 1
-        ? styles.columnMulti
-        : undefined,
+    () => (numColumns > 1 ? styles.columnMulti : undefined),
     [numColumns]
   );
 
@@ -111,14 +127,16 @@ const ListaProdutos: React.FC<ListaProdutosProps> = ({
     () =>
       !loading ? (
         <View style={styles.emptyMessageContainer}>
-          <Text style={styles.emptyMessageText}>Nenhum produto encontrado.</Text>
+          <Text style={styles.emptyMessageText}>
+            Nenhum produto encontrado.
+          </Text>
         </View>
       ) : null,
     [loading]
   );
 
   const shortKey = React.useMemo(() => makeShortKey(listKey), [listKey]);
-  const index_key = `cols-${numColumns}-${shortKey}`; // encurta a chave, estável  
+  const index_key = `cols-${numColumns}-${shortKey}`; // encurta a chave, estável
 
   return (
     <FlatList
@@ -135,7 +153,9 @@ const ListaProdutos: React.FC<ListaProdutosProps> = ({
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.4}
       ListFooterComponent={renderFooter}
-      ListFooterComponentStyle={loading ? styles.footerActive : styles.footerInactive}
+      ListFooterComponentStyle={
+        loading ? styles.footerActive : styles.footerInactive
+      }
       contentContainerStyle={styles.contentContainer}
       ListEmptyComponent={renderEmpty}
       removeClippedSubviews={Platform.OS === "android"}

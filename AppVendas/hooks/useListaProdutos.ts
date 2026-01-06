@@ -14,6 +14,9 @@ interface Params {
   termoBusca?: string;
   enabled?: boolean;
   advancedFilter?: AdvancedFilter; // novo (opcional)
+
+  codigoIn?: string[];
+  versionKey?: number;
 }
 
 export function useListaProdutos({
@@ -21,6 +24,8 @@ export function useListaProdutos({
   termoBusca = "",
   enabled = true,
   advancedFilter = null, // novo (default)
+  codigoIn,
+  versionKey,
 }: Params) {
   const PAGE_SIZE = 400;
 
@@ -46,10 +51,55 @@ export function useListaProdutos({
 
   const termoNorm = useMemo(() => (termoBusca ?? "").trim(), [termoBusca]);
 
+  // helpers para montar whereSql do IN
+  const codigoInKey = useMemo(
+    () => JSON.stringify((codigoIn ?? []).map(String).sort()),
+    [codigoIn]
+  );
+
+  const escapeSqlString = (v: string) => v.replace(/'/g, "''");
+
+  const buildCodigoInWhere = (codes: string[]) => {
+    const list = (codes ?? []).map((c) => String(c).trim()).filter(Boolean);
+
+    if (list.length === 0) return "";
+
+    // SQLite tem limite de parâmetros; aqui estamos gerando string (ok),
+    // mas ainda assim é bom evitar IN gigante: chunk em OR.
+    const CHUNK = 500;
+    const parts: string[] = [];
+
+    for (let i = 0; i < list.length; i += CHUNK) {
+      const chunk = list.slice(i, i + CHUNK);
+      const inSql = chunk.map((c) => `'${escapeSqlString(c)}'`).join(",");
+      parts.push(`codigo IN (${inSql})`);
+    }
+
+    return parts.length === 1 ? parts[0] : `(${parts.join(" OR ")})`;
+  };
+
+  const combinedWhereSql = useMemo(() => {
+    const hasCodes = (codigoIn ?? []).length > 0;
+    // const hasCodes = (codigoIn ?? []).some((c) => String(c).trim().length > 0);
+
+    const whereCodes = hasCodes ? buildCodigoInWhere(codigoIn) : "";
+    const whereAdv = (advancedFilter?.whereSql ?? "").trim();
+
+    if (whereAdv && whereCodes) return `(${whereAdv}) AND (${whereCodes})`;
+    return whereAdv || whereCodes || "";
+  }, [advancedFilter?.whereSql, codigoInKey]);
+
   // inclui o filtro para resetar ao aplicar/limpar
   const depsKey = useMemo(
-    () => JSON.stringify([tabelaPreco, termoNorm, advancedFilter?.whereSql ?? ""]),
-    [tabelaPreco, termoNorm, advancedFilter?.whereSql]
+    () =>
+      JSON.stringify([
+        tabelaPreco,
+        termoNorm,
+        combinedWhereSql,
+        versionKey,
+        codigoInKey,
+      ]),
+    [tabelaPreco, termoNorm, combinedWhereSql, versionKey, codigoInKey]
   );
 
   const carregarPagina = useCallback(
@@ -60,7 +110,8 @@ export function useListaProdutos({
       if (!force) {
         if (loadingRef.current || isPagingRef.current) return;
         // Só bloqueia se NÃO for primeira página; página 1 sempre pode carregar
-        if (paginaDesejada !== 1 && !temMaisRef.current && termoNorm === "") return;
+        if (paginaDesejada !== 1 && !temMaisRef.current && termoNorm === "")
+          return;
         if (lastRequestedPageRef.current === paginaDesejada) return;
       }
       isPagingRef.current = true;
@@ -74,7 +125,11 @@ export function useListaProdutos({
 
         if (termoNorm !== "") {
           // Fluxo atual de busca permanece igual
-          const resposta = await ProdutoService.buscarPorTermo(termoNorm, tabelaPreco, bloqueios);
+          const resposta = await ProdutoService.buscarPorTermo(
+            termoNorm,
+            tabelaPreco,
+            bloqueios
+          );
           if (requestIdRef.current !== myReqId) return; // resposta velha, ignora
           novosProdutos = Array.isArray(resposta) ? resposta : [];
           setTemMais(false);
@@ -82,16 +137,25 @@ export function useListaProdutos({
         } else {
           // Sem busca — decide entre paginação normal ou com filtro
           const hasWhere =
-            !!advancedFilter?.whereSql && advancedFilter.whereSql.trim().length > 0;
+            !!combinedWhereSql && combinedWhereSql.trim().length > 0;
 
-          if (hasWhere && typeof (ProdutoService as any).listarProdutosPaginaComFiltro === "function") {
+          // const hasWhere =
+          //   !!advancedFilter?.whereSql &&
+          //   advancedFilter.whereSql.trim().length > 0;
+
+          if (
+            hasWhere &&
+            typeof (ProdutoService as any).listarProdutosPaginaComFiltro ===
+              "function"
+          ) {
             // usa paginação COM filtro (quando o método existir)
             const resposta = await ProdutoService.listarProdutosPaginaComFiltro(
               PAGE_SIZE,
               paginaDesejada,
               tabelaPreco,
               bloqueios,
-              advancedFilter!.whereSql
+              combinedWhereSql
+              // advancedFilter!.whereSql
             );
             if (requestIdRef.current !== myReqId) return;
             novosProdutos = Array.isArray(resposta) ? resposta : [];
@@ -112,7 +176,9 @@ export function useListaProdutos({
           temMaisRef.current = haMais;
         }
 
-        setProdutos((prev) => (paginaDesejada === 1 ? novosProdutos : [...prev, ...novosProdutos]));
+        setProdutos((prev) =>
+          paginaDesejada === 1 ? novosProdutos : [...prev, ...novosProdutos]
+        );
         setPagina(paginaDesejada);
       } catch (error) {
         console.error("Erro ao carregar produtos:", error);
@@ -124,15 +190,30 @@ export function useListaProdutos({
         }
       }
     },
-    [enabled, PAGE_SIZE, termoNorm, tabelaPreco, bloqueios, advancedFilter?.whereSql]
+    [
+      enabled,
+      PAGE_SIZE,
+      termoNorm,
+      tabelaPreco,
+      bloqueios,
+      // advancedFilter?.whereSql,
+      combinedWhereSql,
+      codigoInKey,
+    ]
   );
 
   const carregarMais = useCallback(() => {
     if (!enabled) return;
     if (loadingRef.current) return;
     if (!temMaisRef.current || termoNorm !== "") return;
+    if (termoNorm !== "") return;
+
+    // ✅ bloqueia paginação quando estiver no filtro carrinho
+    const hasWhere = !!combinedWhereSql && combinedWhereSql.trim().length > 0;
+    if (hasWhere) return;
+
     carregarPagina(pagina + 1);
-  }, [enabled, carregarPagina, pagina, termoNorm]);
+  }, [enabled, carregarPagina, pagina, termoNorm, combinedWhereSql]);
 
   const resetar = useCallback(() => {
     if (!enabled) return;

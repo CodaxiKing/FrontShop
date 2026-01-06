@@ -1,4 +1,4 @@
-import React, { useState, useEffect  } from "react";
+import React, { useState, useEffect } from "react";
 import RNPickerSelect from "react-native-picker-select";
 import { useAuth } from "../context/AuthContext";
 
@@ -55,21 +55,20 @@ const LoginScreen = () => {
     }, 2000);
   };
 
-  const handleGoBackToLogin = () => {   
+  const handleGoBackToLogin = () => {
     setSelectedCodigo(null);
     goBackToLogin();
   };
 
-  useEffect(() =>
-  {
-    // setUsername("junior@grupotechnos.com.br"); 
-     setUsername("isnaildo@grupotechnos.com.br");
+  useEffect(() => {
+    // setUsername("junior@grupotechnos.com.br");
+    //  setUsername("isnaildo@grupotechnos.com.br");
     // setUsername("pedromartins@grupotechnos.com.br");
     // setUsername("cesarmilla@grupotechnos.com.br");
     // setUsername("andremartins@grupotechnos.com.br");
-     setPassword("dasdsadsadasdasdsa");
-  })
-    
+    //  setPassword("dasdsadsadasdasdsa");
+  });
+
   return (
     <>
       <Container>

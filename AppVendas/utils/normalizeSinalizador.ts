@@ -9,6 +9,7 @@ export type IconKey =
   | "new"
   | "calendar"
   | "return"
+  | "bought"
   | "cart"
   | "question";
 
@@ -17,11 +18,12 @@ export const MAP_SINALIZADORES: Record<
   { rotulo: string; icon: IconKey }
 > = {
   "001": { rotulo: "CAMPEÕES", icon: "trophy" },
-  "002": { rotulo: "COM KIT",  icon: "gift" },
-  "003": { rotulo: "NOVO",     icon: "new" },
-  "004": { rotulo: "AGENDA",   icon: "calendar" },
-  "005": { rotulo: "RETORNO",  icon: "return" },
-  "000": { rotulo: "JA COMPROU", icon: "cart" },
+  "002": { rotulo: "COM KIT", icon: "gift" },
+  "003": { rotulo: "NOVO", icon: "new" },
+  "004": { rotulo: "AGENDA", icon: "calendar" },
+  "005": { rotulo: "RETORNO", icon: "return" },
+  "006": { rotulo: "CARRINHO", icon: "cart" },
+  "000": { rotulo: "JA COMPROU", icon: "bought" },
   "111": { rotulo: "FAVORITO", icon: "star" },
 };
 
@@ -37,13 +39,18 @@ function parseJsonSafe<T>(text: string): T | null {
 }
 
 // Aceita objeto parcial e completa descricao
-function isSinalizadorLike(x: any): x is Partial<Sinalizador> & { codigo: string } {
+function isSinalizadorLike(
+  x: any
+): x is Partial<Sinalizador> & { codigo: string } {
   return x && typeof x.codigo === "string";
 }
 
 function coerceSinalizador(x: any): Sinalizador | null {
   if (!isSinalizadorLike(x)) return null;
-  return { codigo: x.codigo, descricao: typeof x.descricao === "string" ? x.descricao : "" };
+  return {
+    codigo: x.codigo,
+    descricao: typeof x.descricao === "string" ? x.descricao : "",
+  };
 }
 
 function dedupeByCodigo(arr: Sinalizador[]): Sinalizador[] {
@@ -81,13 +88,20 @@ function sortByPrioridade(arr: Sinalizador[]): Sinalizador[] {
  *  - null/undefined/""/"[]"
  * Faz: coerção de descricao, deduplicação e ordenação por prioridade (opcional).
  */
-export function normalizeSinalizadores(input: unknown, opts?: { ordenarPorPrioridade?: boolean }): Sinalizador[] {
+export function normalizeSinalizadores(
+  input: unknown,
+  opts?: { ordenarPorPrioridade?: boolean }
+): Sinalizador[] {
   let arr: Sinalizador[] = [];
 
   if (Array.isArray(input)) {
     // Array pode ser de objetos ou de códigos
     arr = input
-      .map((x) => (typeof x === "string" ? { codigo: x, descricao: "" } : coerceSinalizador(x)))
+      .map((x) =>
+        typeof x === "string"
+          ? { codigo: x, descricao: "" }
+          : coerceSinalizador(x)
+      )
       .filter((x): x is Sinalizador => !!x);
   } else if (typeof input === "string") {
     const s = input.trim();
@@ -98,10 +112,17 @@ export function normalizeSinalizadores(input: unknown, opts?: { ordenarPorPriori
     if (parsed) {
       if (Array.isArray(parsed)) {
         arr = parsed
-          .map((x) => (typeof x === "string" ? { codigo: x, descricao: "" } : coerceSinalizador(x)))
+          .map((x) =>
+            typeof x === "string"
+              ? { codigo: x, descricao: "" }
+              : coerceSinalizador(x)
+          )
           .filter((x): x is Sinalizador => !!x);
       } else {
-        const unico = typeof parsed === "string" ? { codigo: parsed, descricao: "" } : coerceSinalizador(parsed);
+        const unico =
+          typeof parsed === "string"
+            ? { codigo: parsed, descricao: "" }
+            : coerceSinalizador(parsed);
         arr = unico ? [unico] : [];
       }
     } else {
@@ -131,7 +152,10 @@ export function normalizeSinalizadores(input: unknown, opts?: { ordenarPorPriori
 }
 
 /** Enriquecimento para UI (não retorna JSX) */
-export type SinalizadorDecorado = Sinalizador & { rotulo: string; icon: IconKey };
+export type SinalizadorDecorado = Sinalizador & {
+  rotulo: string;
+  icon: IconKey;
+};
 
 export function decorateForUI(list: Sinalizador[]): SinalizadorDecorado[] {
   return list.map((s) => {
@@ -153,25 +177,30 @@ export function serializeSinalizadores(list: Sinalizador[]): string {
 }
 
 export const mockSinalizadoresDecor: SinalizadorDecorado[] = [
-  { codigo: "000", descricao: "JA COMPROU",     rotulo: "JA COMPROU",  icon: "cart" },  
-  { codigo: "001", descricao: "CAMPEOES",       rotulo: "CAMPEÕES",    icon: "trophy" },
-  { codigo: "002", descricao: "COM KIT",        rotulo: "COM KIT",     icon: "gift" },
-  { codigo: "003", descricao: "Produto Novo",   rotulo: "NOVO",        icon: "new" },
-  { codigo: "004", descricao: "Agenda",         rotulo: "AGENDA",      icon: "calendar" },
-  { codigo: "005", descricao: "Retorno",        rotulo: "RETORNO",     icon: "return" },
-  { codigo: "006", descricao: "Carrinho",       rotulo: "CARRINHO",    icon: "info" },
-  { codigo: "111", descricao: "FAVORITO",       rotulo: "FAVORITO",    icon: "star" },
+  {
+    codigo: "000",
+    descricao: "JA COMPROU",
+    rotulo: "JA COMPROU",
+    icon: "bought",
+  },
+  { codigo: "001", descricao: "CAMPEOES", rotulo: "CAMPEÕES", icon: "trophy" },
+  { codigo: "002", descricao: "COM KIT", rotulo: "COM KIT", icon: "gift" },
+  { codigo: "003", descricao: "Produto Novo", rotulo: "NOVO", icon: "new" },
+  { codigo: "004", descricao: "Agenda", rotulo: "AGENDA", icon: "calendar" },
+  { codigo: "005", descricao: "Retorno", rotulo: "RETORNO", icon: "return" },
+  { codigo: "006", descricao: "Carrinho", rotulo: "CARRINHO", icon: "cart" },
+  { codigo: "111", descricao: "FAVORITO", rotulo: "FAVORITO", icon: "star" },
 ];
 
- // normalização defensiva: aceita array, string única, CSV, e "003 • Descrição"
+// normalização defensiva: aceita array, string única, CSV, e "003 • Descrição"
 export const normalizeCodes = (val: any): string[] => {
-  const arr = Array.isArray(val) ? val : (val != null ? [val] : []);
+  const arr = Array.isArray(val) ? val : val != null ? [val] : [];
   const out = Array.from(
     new Set(
       arr
-        .flatMap((x) => String(x).split(","))         
-        .map((s) => s.split("•")[0])                  
-        .map((s) => s.replace(/['"]/g, "").trim())    
+        .flatMap((x) => String(x).split(","))
+        .map((s) => s.split("•")[0])
+        .map((s) => s.replace(/['"]/g, "").trim())
         .filter(Boolean)
     )
   );

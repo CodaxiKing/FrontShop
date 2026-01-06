@@ -3,8 +3,6 @@ import React from "react";
 import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 import Entypo from "@expo/vector-icons/Entypo";
 
-
-
 export type IconKey =
   | "star"
   | "trophy"
@@ -12,6 +10,7 @@ export type IconKey =
   | "new"
   | "calendar"
   | "return"
+  | "bought"
   | "cart"
   | "info";
 
@@ -35,23 +34,30 @@ export function iconFromKey(raw: string, size = 27, color?: string) {
       );
     case "calendar":
       return (
-        <MaterialIcons name="calendar-month" size={s} color={color ?? "#DC143C"} />
-      );
-    case "return":
-      return (
-        <Entypo
-          name="back-in-time"
+        <MaterialIcons
+          name="calendar-month"
           size={s}
-          color={color ?? "#8C0000"}
+          color={color ?? "#DC143C"}
         />
       );
-    case "cart":      
-     return <AntDesign name="pushpin" size={s} color={color ?? "#87CEEB"} />;
-    case "info":      
-      return <AntDesign name="infocirlce" size={s} color={color ?? "#000000"} />;
+    case "return":
+      return <Entypo name="back-in-time" size={s} color={color ?? "#8C0000"} />;
+    case "bought":
+      return <AntDesign name="pushpin" size={s} color={color ?? "#87CEEB"} />;
+    case "cart":
+      return (
+        <Entypo name="shopping-cart" size={s} color={color ?? "#007427"} />
+      );
+
+    case "info":
+      return (
+        <AntDesign name="infocircle" size={s} color={color ?? "#000000"} />
+      );
     default:
       // mantém o mesmo nome que você já usava
-      return <AntDesign name="questioncirlce" size={s} color={color ?? "#000000"} />;
+      return (
+        <AntDesign name="questioncirlce" size={s} color={color ?? "#000000"} />
+      );
   }
 }
 
@@ -60,8 +66,9 @@ export const SINALIZADORES_OPCOES = [
   { codigo: "001", label: "Campeões" },
   { codigo: "002", label: "Com kit" },
   { codigo: "003", label: "Lançamentos" },
-  { codigo: "004", label: "Pré-venda" },  
-  { codigo: "005", label: "Retorno" },  
+  { codigo: "004", label: "Pré-venda" },
+  { codigo: "005", label: "Retorno" },
+  { codigo: "006", label: "Carrinho" },
 ];
 
 export const ICON_LABELS: Record<IconKey, string> = {
@@ -71,18 +78,19 @@ export const ICON_LABELS: Record<IconKey, string> = {
   new: "Lançamentos",
   calendar: "Pre Venda",
   return: "Retorno",
-  cart: "Ja Comprou",
+  bought: "Ja Comprou",
+  cart: "Carrinho",
   info: "Info",
 };
 
 export const DEFAULT_LEGEND: { key: IconKey; label: string }[] = [
-  { key: "star", label: ICON_LABELS.star },  
+  { key: "star", label: ICON_LABELS.star },
   { key: "trophy", label: ICON_LABELS.trophy },
   { key: "gift", label: ICON_LABELS.gift },
   { key: "new", label: ICON_LABELS.new },
   { key: "calendar", label: ICON_LABELS.calendar },
   { key: "return", label: ICON_LABELS.return },
+  { key: "bought", label: ICON_LABELS.bought },
   { key: "cart", label: ICON_LABELS.cart },
   //{ key: "info", label: ICON_LABELS.info },
-  
 ];

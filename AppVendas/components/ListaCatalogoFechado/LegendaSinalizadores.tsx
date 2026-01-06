@@ -11,7 +11,7 @@ import {
   iconFromKey,
   DEFAULT_LEGEND,
   IconKey,
-  ICON_TO_CODES_CANON, // fallback canônico (dos utils)
+  // ICON_TO_CODES_CANON, // fallback canônico (dos utils)
 } from "@/utils/sinalizadorIcon";
 import {
   normalizeSinalizadores,
@@ -21,13 +21,14 @@ import {
 
 // --- SUPER-FALLBACK local (caso utils venham indefinidos por ciclo de import/build) ---
 const LOCAL_ICON_TO_CODES_CANON: Partial<Record<IconKey, string[]>> = {
-  star: ["111"],     // Favorito (fonte de dados separada)
-  cart: ["000"],     // Já comprou (fonte de dados separada)
-  trophy: ["001"],   // Campeões
-  gift: ["002"],     // Com kit
-  new: ["003"],      // Lançamentos
+  star: ["111"], // Favorito (fonte de dados separada)
+  bought: ["000"], // Já comprou (fonte de dados separada)
+  trophy: ["001"], // Campeões
+  gift: ["002"], // Com kit
+  new: ["003"], // Lançamentos
   calendar: ["004"], // Pré-venda
-  return: ["005"],   // Retorno
+  return: ["005"], // Retorno
+  cart: ["006"], // Carrinho
   info: [],
 };
 
@@ -38,7 +39,8 @@ const FALLBACK_DEFAULT_LEGEND: { key: IconKey; label: string }[] = [
   { key: "new", label: "Lançamentos" },
   { key: "calendar", label: "Pré-venda" },
   { key: "return", label: "Retorno" },
-  { key: "cart", label: "Já comprou" },
+  { key: "bought", label: "Já Comprou" },
+  { key: "cart", label: "Carrinho" },
 ];
 
 // -- Tipos --
@@ -90,7 +92,10 @@ const LegendaSinalizadores: React.FC<Props> = ({
   const safeItems = useMemo<LegendItem[]>(() => {
     const base = Array.isArray(items) && items.length ? items : DEFAULT_LEGEND;
     if (Array.isArray(base) && base.length) return base;
-    if (__DEV__) console.debug("[Legenda] DEFAULT_LEGEND indisponível; usando FALLBACK_DEFAULT_LEGEND");
+    if (__DEV__)
+      console.debug(
+        "[Legenda] DEFAULT_LEGEND indisponível; usando FALLBACK_DEFAULT_LEGEND"
+      );
     return FALLBACK_DEFAULT_LEGEND;
   }, [items]);
 
@@ -145,8 +150,12 @@ const LegendaSinalizadores: React.FC<Props> = ({
   // Mapa mesclado por prioridade (garante fallback por-CHAVE):
   // LOCAL  <-  CANÔNICO(utils)  <-  iconToCodesMap (remoto)
   const mergedMap = useMemo<Partial<Record<IconKey, string[]>>>(() => {
-    const canonic = isNonEmptyObject(ICON_TO_CODES_CANON) ? (ICON_TO_CODES_CANON as any) : {};
-    const remote  = isNonEmptyObject(iconToCodesMap)     ? (iconToCodesMap as any)     : {};
+    const canonic = isNonEmptyObject(LOCAL_ICON_TO_CODES_CANON)
+      ? (LOCAL_ICON_TO_CODES_CANON as any)
+      : {};
+    const remote = isNonEmptyObject(iconToCodesMap)
+      ? (iconToCodesMap as any)
+      : {};
     const merged = { ...LOCAL_ICON_TO_CODES_CANON, ...canonic, ...remote };
     if (__DEV__) {
       const dbg = {
@@ -179,22 +188,23 @@ const LegendaSinalizadores: React.FC<Props> = ({
           : undefined;
 
         const isStatic = !dynCodes || dynCodes.length === 0;
-        const codes = isStatic ? (mergedMap[key] ?? []) : dynCodes;
+        const codes = isStatic ? mergedMap[key] ?? [] : dynCodes;
 
-        const clickable = !!onPressIcon && Array.isArray(codes) && codes.length > 0;
+        const clickable =
+          !!onPressIcon && Array.isArray(codes) && codes.length > 0;
         const Wrapper: any = clickable ? TouchableOpacity : View;
         const onPress = clickable ? () => onPressIcon!(codes) : undefined;
 
-        if (__DEV__) {
-          console.debug(
-            `[Legenda] item key=${key} label="${label}" codes=`,
-            codes,
-            "static=",
-            isStatic,
-            "clickable=",
-            clickable
-          );
-        }
+        // if (__DEV__) {
+        //   console.debug(
+        //     `🎈 [Legenda] item key=${key} label="${label}" codes=`,
+        //     codes,
+        //     "static=",
+        //     isStatic,
+        //     "clickable=",
+        //     clickable
+        //   );
+        // }
 
         return (
           <Wrapper

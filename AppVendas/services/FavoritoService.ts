@@ -9,22 +9,44 @@ export class FavoritoService {
 
   static async isFavorite(produtoId: string, ctx: CtxFavorito) {
     const { cpfCnpj, clienteId, representanteId } = ctx;
-    return FavoritoRepository.exists(produtoId, cpfCnpj, clienteId, representanteId);
+    return FavoritoRepository.exists(
+      produtoId,
+      cpfCnpj,
+      clienteId,
+      representanteId
+    );
   }
 
   static async toggleFavorite(produtoId: string, ctx: CtxFavorito) {
     const { cpfCnpj, clienteId, representanteId } = ctx;
-    const exists = await FavoritoRepository.exists(produtoId, cpfCnpj, clienteId, representanteId);
+    const exists = await FavoritoRepository.exists(
+      produtoId,
+      cpfCnpj,
+      clienteId,
+      representanteId
+    );
     if (exists) {
-      console.log(`${getHoraAtualComMs()}[eventBus]-> ["favorito:toggled=false"]: produto[${produtoId}] cpfCnpj[${cpfCnpj}] clienteId[${clienteId}] representante[${representanteId}]`);
-      await FavoritoRepository.remove(produtoId, cpfCnpj, clienteId, representanteId);
+      // console.log(`${getHoraAtualComMs()}[eventBus]-> ["favorito:toggled=false"]: produto[${produtoId}] cpfCnpj[${cpfCnpj}] clienteId[${clienteId}] representante[${representanteId}]`);
+      await FavoritoRepository.remove(
+        produtoId,
+        cpfCnpj,
+        clienteId,
+        representanteId
+      );
     } else {
-      console.log(`${getHoraAtualComMs()}[eventBus]-> ["favorito:toggled=true"]: produto[${produtoId}] cpfCnpj[${cpfCnpj}] clienteId[${clienteId}] representante[${representanteId}]`);
-      await FavoritoRepository.add(produtoId, cpfCnpj, clienteId, representanteId);
+      // console.log(
+      //   `${getHoraAtualComMs()}[eventBus]-> ["favorito:toggled=true"]: produto[${produtoId}] cpfCnpj[${cpfCnpj}] clienteId[${clienteId}] representante[${representanteId}]`
+      // );
+      await FavoritoRepository.add(
+        produtoId,
+        cpfCnpj,
+        clienteId,
+        representanteId
+      );
     }
 
     // broadcast opcional para sincronizar outras telas/widgets
-    try {      
+    try {
       eventBus.emit("favorito:toggled", {
         produtoId,
         isFavorite: !exists,
@@ -37,10 +59,13 @@ export class FavoritoService {
     return !exists;
   }
 
-  static async mapForList(produtoIds: (string|number)[], ctx: CtxFavorito) {
+  static async mapForList(produtoIds: (string | number)[], ctx: CtxFavorito) {
     const { cpfCnpj, clienteId, representanteId } = ctx;
-    return FavoritoRepository.mapForList(produtoIds, cpfCnpj, clienteId, representanteId);
+    return FavoritoRepository.mapForList(
+      produtoIds,
+      cpfCnpj,
+      clienteId,
+      representanteId
+    );
   }
 }
-
-

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Entypo from "@expo/vector-icons/Entypo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -14,15 +14,17 @@ import {
   CheckButtonContainer,
   CheckButton,
 } from "./style";
-import { ScrollView, TouchableOpacity, View } from "react-native";
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"; // Certifique-se de usar o hook correto
+import { ScrollView, TouchableOpacity, View, Alert } from "react-native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "@/types/types";
 import { useOrientation } from "@/context/OrientationContext";
-import * as SQLite from "expo-sqlite";
-import SelecaoTabelaProdutoModal from "@/modal/ModalSelecaoTabelaProduto";
 import { AntDesign } from "@expo/vector-icons";
 import { PedidoCopiaProvider } from "@/context/PedidoCopiaContext";
+import { selecionarTabelaPrecoPorHierarquia, getProdutosComEstoque } from "@/helpers/selecionarTabelaPrecoPorHierarquia";
+import { useClientInfoContext } from "@/context/ClientInfoContext";
+import AuthContext from "@/context/AuthContext";
+import { useTopContext } from "@/context/TopContext";
 
 interface CardClienteProps {
   cliente: {
@@ -45,21 +47,135 @@ export const CardCliente: React.FC<CardClienteProps> = ({
   isSelected,
   onSelect,
 }) => {
-  const [selecaoTabelaPreco, setSelecaoTabelaPreco] = useState(false);
-
-  //const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<TopRouteProp>();
   const { isModoPaisagem, width } = useOrientation();
-
-  // console.log("Parametros da Rota(CardCliente):", route.params);
+  const { setClientInfo } = useClientInfoContext();
+  const { userData } = useContext(AuthContext);
+  const { updateCarrinhosCount } = useTopContext();
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!cliente) {
     console.warn("Cliente não foi fornecido.");
     return null;
   }
 
-  const handleSelectTabelaPreco = () => {
-    setSelecaoTabelaPreco(true);
+  /**
+   * 🎯 Seleção Automática da Tabela de Preço
+   * Executa a hierarquia automaticamente quando o cliente é selecionado
+   * Sem modal de seleção - direto para o catálogo
+   */
+  const handleSelectTabelaPreco = async () => {
+    setIsLoading(true);
+    try {
+      const representanteId = userData?.representanteId || "";
+
+      if (!representanteId) {
+        Alert.alert("Erro", "Representante não identificado");
+        setIsLoading(false);
+        return;
+      }
+
+      // ✅ CA1: Identifica automaticamente a tabela base do cliente seguindo a hierarquia
+      const tabelaSelecionada = await selecionarTabelaPrecoPorHierarquia(
+        {
+          cpfCnpj: cliente.cpfCnpj,
+          clienteId: Number(cliente.clienteId || cliente.codigo),
+          codigoColigado: cliente.codigoColigado,
+          codigoFilial: cliente.codigoFilial,
+          cpfCnpjPai: cliente.cpfCnpjPai,
+        },
+        representanteId
+      );
+
+      if (!tabelaSelecionada) {
+        Alert.alert(
+          "Sem Tabela",
+          "Nenhuma tabela de preço disponível para este cliente"
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(`✅ TABELA DE PREÇO SELECIONADA: ${tabelaSelecionada.descricao}`);
+      console.log(`📊 Código da tabela: ${String(tabelaSelecionada.value).trim()}`);
+      console.log(`🏷️ Tipo da tabela: ${tabelaSelecionada.tipo}`);
+      console.log(`👤 Cliente: ${cliente.razaoSocial} (${cliente.cpfCnpj})`);
+      console.log(`${'='.repeat(60)}\n`);
+
+      // ✅ CA10: Filtra apenas produtos com estoque disponível
+      console.log("🔍 Buscando produtos com estoque...");
+      const produtosComEstoque = await getProdutosComEstoque(
+        {
+          value: tabelaSelecionada.value,
+          tipo: tabelaSelecionada.tipo,
+        }
+      );
+
+      console.log(`📦 Produtos encontrados: ${produtosComEstoque?.length || 0}`);
+      if (produtosComEstoque && produtosComEstoque.length > 0) {
+        console.log(`✅ Primeiros 3 produtos: ${produtosComEstoque.slice(0, 3).map((p: any) => `${p.codigo} - ${p.descricaoMarca}`).join(', ')}`);
+      } else {
+        console.warn(`⚠️ NENHUM PRODUTO com estoque encontrado!`);
+        console.warn(`   - Tabela: ${tabelaSelecionada.value}`);
+        console.warn(`   - Tipo: ${tabelaSelecionada.tipo}`);
+        console.warn(`   - Verifique se existem produtos com quantidadeEstoquePA > 0 no banco de dados`);
+      }
+
+      // Garante que sempre tem um array, mesmo vazio
+      const produtosParaNavegar = produtosComEstoque || [];
+      const parsedProdutos = produtosParaNavegar.map((produto: any) => ({
+        ...produto,
+        imagens: produto.imagens ? JSON.parse(produto.imagens) : [],
+      }));
+
+      console.log(`✅ Navegando para catálogo com ${parsedProdutos.length} produtos`);
+
+      // Atualiza contexto com tabela selecionada
+      setClientInfo({
+        cpfCnpjContext: cliente.cpfCnpj,
+        clienteIdContext: cliente.clienteId || cliente.codigo,
+        selectedTabelaPrecoContext: {
+          value: String(tabelaSelecionada.value),
+          tipo: tabelaSelecionada.tipo,
+        },
+        produtosFiltradosTabelaPrecoContext: parsedProdutos,
+        selectedClientContext: {
+          cpfCnpj: cliente.cpfCnpj,
+          clienteId: cliente.clienteId || cliente.codigo,
+          codigoCliente: cliente.codigo,
+          razaoSocial: cliente.razaoSocial || "",
+          enderecoCompleto: cliente.enderecoCompleto || "",
+          enderecos: cliente.enderecos || [],
+        },
+      });
+
+      // ✅ SEMPRE navega para o catálogo, mesmo com produtos vazio
+      navigation.navigate("CatalogoFechado", {
+        pedidoId: 0,
+        catalogOpen: false,
+        cpfCnpj: cliente.cpfCnpj,
+        clienteId: cliente.clienteId || cliente.codigo,
+        representanteCreateId: representanteId,
+        selectedTabelaPreco: String(tabelaSelecionada.value),
+        selectedClient: {
+          cpfCnpj: cliente.cpfCnpj,
+          clienteId: cliente.clienteId || cliente.codigo,
+          codigoCliente: cliente.codigo,
+          razaoSocial: cliente.razaoSocial || "",
+          enderecoCompleto: cliente.enderecoCompleto || "",
+          enderecos: cliente.enderecos || [],
+        },
+      });
+
+      updateCarrinhosCount();
+    } catch (error) {
+      console.error("❌ Erro ao selecionar tabela automaticamente:", error);
+      Alert.alert("Erro", "Não foi possível selecionar a tabela de preço");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   //forma anterior de selecionar cliente e navegar para o catálogo fechado, deixar comentado para futura referência
@@ -127,14 +243,6 @@ export const CardCliente: React.FC<CardClienteProps> = ({
           </IconButton>
         </IconContainer>
       </CardContainer>
-
-      {selecaoTabelaPreco && (
-        <SelecaoTabelaProdutoModal
-          onClose={() => setSelecaoTabelaPreco(false)}
-          visible={selecaoTabelaPreco}
-          cliente={cliente}
-        />
-      )}
     </>
   );
 };

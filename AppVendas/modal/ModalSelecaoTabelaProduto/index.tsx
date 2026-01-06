@@ -418,7 +418,7 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
         LIMIT 1
       `;
       const result = await db.getFirstAsync(query, [
-        cliente.clienteId,
+        cliente.clienteId ?? cliente.codigo,
         cliente.cpfCnpj,
         representanteId, // já existe no componente
       ]);
@@ -431,15 +431,17 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
         DELETE FROM NovoPedido
         WHERE clienteId = ? AND cpfCnpj = ? AND representanteId = ?
       `;
-      await db.runAsync(query, [cliente.clienteId, cliente.cpfCnpj, representanteId]);
+      await db.runAsync(query, [
+        cliente.clienteId ?? cliente.codigo,
+        cliente.cpfCnpj,
+        representanteId,
+      ]);
     };
-
-
 
     // Função que executa o fluxo de confirmação e navegação
     const proceedWithSelection = async (shouldDelete: boolean) => {
       try {
-       // Só deleta se for troca de tabela (Confirmar no alerta)
+        // Só deleta se for troca de tabela (Confirmar no alerta)
         if (shouldDelete && infoPedidoAberto) {
           await deletePedidoDoClienteSelecionado();
         }
@@ -460,7 +462,7 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
 
         setClientInfo({
           cpfCnpjContext: cliente.cpfCnpj,
-          clienteIdContext: cliente.clienteId,
+          clienteIdContext: cliente.clienteId ?? cliente.codigo,
           selectedTabelaPrecoContext: {
             value: selectedTabelaPreco.value,
             tipo: selectedTabelaPreco.tipo,
@@ -468,7 +470,7 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
           produtosFiltradosTabelaPrecoContext: parsedProdutos,
           selectedClientContext: {
             cpfCnpj: cliente.cpfCnpj,
-            clienteId: cliente.clienteId,
+            clienteId: cliente.clienteId ?? cliente.codigo,
             codigoCliente: cliente?.codigo,
             razaoSocial: cliente.razaoSocial || "",
             enderecoCompleto: cliente.enderecoCompleto || "",
@@ -481,7 +483,7 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
             // Salva informações do cliente no contexto de copia do pedido
             setTargetClient({
               cpfCnpj: cliente.cpfCnpj,
-              clienteId: cliente.clienteId,
+              clienteId: cliente.clienteId ?? cliente.codigo,
               codigoCliente: cliente?.codigo,
               razaoSocial: cliente.razaoSocial,
               enderecoCompleto: cliente.enderecoCompleto,
@@ -506,13 +508,13 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
           pedidoId: 0,
           catalogOpen: false,
           cpfCnpj: cliente.cpfCnpj,
-          clienteId: cliente.clienteId,
+          clienteId: cliente.clienteId ?? cliente.codigo,
           representanteCreateId: representanteCreateId,
           selectedTabelaPreco: String(selectedTabelaPreco.value),
           //produtosFiltradosTabelaPreco: parsedProdutos,
           selectedClient: {
             cpfCnpj: cliente.cpfCnpj,
-            clienteId: cliente.clienteId,
+            clienteId: cliente.clienteId ?? cliente.codigo,
             codigoCliente: cliente?.codigo,
             razaoSocial: cliente.razaoSocial || "",
             enderecoCompleto: cliente.enderecoCompleto || "",
@@ -562,13 +564,15 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
 
         // 4) só entra no alerta se for troca de tabela e existir pedidoTabela
         if (
-          pedido.clienteId === cliente.clienteId &&
+          pedido.clienteId === (cliente.clienteId ?? cliente.codigo) &&
           tabelaIdRaw !== String(selectedTabelaPreco.value)
         ) {
           // 4) buscar descrição amigável
           const existingLabel =
-            tabelaPrecoData.find((item) => String(item.codigo) === String(tabelaIdRaw))
-              ?.descricao ?? (tabelaIdRaw === PADRAO_COD ? "Padrão" : String(tabelaIdRaw));
+            tabelaPrecoData.find(
+              (item) => String(item.codigo) === String(tabelaIdRaw)
+            )?.descricao ??
+            (tabelaIdRaw === PADRAO_COD ? "Padrão" : String(tabelaIdRaw));
 
           // 6) extrair mais infos
           const totalItens = pedido.quantidadeItens;
@@ -600,7 +604,7 @@ const SelecaoTabelaProdutoModal: React.FC<TabelaProdutoModalProps> = memo(
       }
 
       // sem conflito, segue normalmente
-      proceedWithSelection();
+      proceedWithSelection(false);
     };
 
     return (

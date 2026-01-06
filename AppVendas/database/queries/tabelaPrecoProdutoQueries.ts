@@ -1,3 +1,4 @@
+// ✅ CA10: Busca por termo na tabela de preço com filtro de estoque
 export const queryBuscarTabelaPrecoPorTermo = (condicoesBusca: string, condicionalExtra?: string) => `
   SELECT tpp.*, v.imagemLocal, c.imagens
     FROM TabelaPrecoProduto tpp
@@ -6,6 +7,7 @@ export const queryBuscarTabelaPrecoPorTermo = (condicoesBusca: string, condicion
     LEFT JOIN Catalogo c
            ON c.codigo = tpp.codigo
    WHERE tpp.codigoTabelaPreco = ?
+     AND tpp.quantidadeEstoquePA > 0
      AND (${condicoesBusca})
      ${condicionalExtra ? `AND ${condicionalExtra}` : ""}
    ORDER BY tpp.codigo;
@@ -21,6 +23,7 @@ export const queryBuscarTabelaPrecoPaginado = (condicionalExtra = "") => `
     LEFT JOIN Catalogo c
            ON c.codigo = tpp.codigo
    WHERE tpp.codigoTabelaPreco = ?
+     AND tpp.quantidadeEstoquePA > 0
      ${condicionalExtra ? `AND ${condicionalExtra}` : ""}
    ORDER BY tpp.codigo ASC
    LIMIT ? OFFSET ?;

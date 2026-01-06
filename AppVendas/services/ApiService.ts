@@ -1258,13 +1258,15 @@ export const fetchAllCatalogo = async (
 
       updateProgress?.(parseFloat(progressPercent));
 
-      console.log(`Página ${page}/${totalPages} | Total sincronizado: ${totalCatalogo} | ${progressPercent}%`);
+      console.log(
+        `Página ${page}/${totalPages} | Total sincronizado: ${totalCatalogo} | ${progressPercent}%`
+      );
 
       page++;
 
       if (page <= totalPages) {
         await fetchCatalogo();
-      }          
+      }
 
       return { total: totalCatalogo, synced: totalCatalogo };
     } catch (error) {
@@ -1279,17 +1281,24 @@ export const fetchAllCatalogo = async (
   updateProgress?.(100);
   updateCounts?.(totalCatalogo, totalCatalogo); // Atualiza UI com os novos valores
 
-  await db.runAsync(updateControleIntegracaoData, [E_CONTROLE_INTEGRACAO.CATALOGO, ]);
+  await db.runAsync(updateControleIntegracaoData, [
+    E_CONTROLE_INTEGRACAO.CATALOGO,
+  ]);
 
   const endTime = Date.now();
   const durationMs = endTime - startTime;
 
   // Helper para exibir tempo total de sincronização
-  console.log(`Tempo total de sincronização [Catalogo]: ${formatDuration(durationMs)}`);
+  console.log(
+    `Tempo total de sincronização [Catalogo]: ${formatDuration(durationMs)}`
+  );
 
   // dispara em background; a UI depois cola na 2ª barra via eventBus
-  ImageService.downloadAll({ batchSize: 100, concurrency: 4 , verbose: true})
-  .catch((e) => console.warn("[IMG-SYNC] downloadAll error:", e));
+  ImageService.downloadAll({
+    batchSize: 100,
+    concurrency: 4,
+    verbose: true,
+  }).catch((e) => console.warn("[IMG-SYNC] downloadAll error:", e));
 
   return { total: totalCatalogo, synced: totalCatalogo };
 };
@@ -1319,7 +1328,11 @@ const saveCatalogoData = async (response: CatalogoItemResponse) => {
     await db.runAsync("BEGIN TRANSACTION");
 
     // Lote de imagens desta página
-    const imagensBatch: { codigoProduto: string; ordem: number; urlRemota: string }[] = [];
+    const imagensBatch: {
+      codigoProduto: string;
+      ordem: number;
+      urlRemota: string;
+    }[] = [];
 
     for (const item of catalogo) {
       const normalizedItem = normalizeItem(item);
@@ -1396,9 +1409,16 @@ const saveCatalogoData = async (response: CatalogoItemResponse) => {
       // coletar urls de imagens mantendo a ordem do array (0 = principal)
       try {
         const raw = normalizedItem.imagens;
-        const imgs = Array.isArray(raw) ? raw : (typeof raw === "string" ? JSON.parse(raw || "[]") : []);
+        const imgs = Array.isArray(raw)
+          ? raw
+          : typeof raw === "string"
+          ? JSON.parse(raw || "[]")
+          : [];
         imgs.forEach((img: any, idx: number) => {
-          const url = img?.imagemUrl ?? img?.url ?? (typeof img === "string" ? img : null);
+          const url =
+            img?.imagemUrl ??
+            img?.url ??
+            (typeof img === "string" ? img : null);
           if (url) {
             imagensBatch.push({
               codigoProduto: normalizedItem.codigo,
@@ -1409,7 +1429,9 @@ const saveCatalogoData = async (response: CatalogoItemResponse) => {
         });
       } catch {
         // se o JSON vier malformado, ignora silenciosamente
-        console.error("[normalizedItem.imagens[L:1413]]: Coletar urls de imagens mantendo a ordem do array (0 = principal)");
+        console.error(
+          "[normalizedItem.imagens[L:1413]]: Coletar urls de imagens mantendo a ordem do array (0 = principal)"
+        );
       }
     }
 
@@ -1420,7 +1442,6 @@ const saveCatalogoData = async (response: CatalogoItemResponse) => {
     if (imagensBatch.length > 0) {
       await ProdutoImagemRepository.insertMany(imagensBatch);
     }
-
   } catch (error) {
     console.error("Erro ao salvar dados do catálogo:", error);
     await db.runAsync("ROLLBACK");
@@ -1483,8 +1504,7 @@ export const fetchAllTabelaPrecoProdutoData = async (
 
       const t0 = Date.now();
 
-      console.log(`Bearer ${token}`);
-     
+      // console.log(`Bearer ${token}`);
 
       await saveTabelaPrecoProdutoData(response.data.data);
 
@@ -1510,8 +1530,6 @@ export const fetchAllTabelaPrecoProdutoData = async (
       );
 
       page++;
-
-       
 
       if (page <= totalPages) {
         await fetchTabelaPrecoProduto();
@@ -2993,7 +3011,10 @@ export const postPedidoData = async (token: string, pedidos: PedidoItem[]) => {
             : pedido.meiosPagamento,
         produtos: normalizeProdutos(pedido.produtos),
       };
-      console.log("Pedido Antes de ser Enviado:", JSON.stringify(pedidoFormatado, null, 2));
+      console.log(
+        "Pedido Antes de ser Enviado:",
+        JSON.stringify(pedidoFormatado, null, 2)
+      );
 
       const response = await apiClient.post("/api/pedido", pedidoFormatado, {
         headers: {

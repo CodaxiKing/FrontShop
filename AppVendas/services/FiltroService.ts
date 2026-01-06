@@ -144,23 +144,29 @@ export class FiltroService {
       const sinExclude = rawExclude.filter((c) => c !== "000" && c !== "111");
 
       // IMPORTANTE: em SQLite, use json_extract (não existe ->> como em PostgreSQL)
+      // Nota: geramos duas variantes do where: uma para catálogo (referencia direta / Catalogo)
+      // e outra para tabela (usa alias 'c' para a tabela Catalogo no contexto de TabelaPreco)
       if (sinInclude.length > 0) {
         parts.push(
           `EXISTS (
             SELECT 1
-            FROM json_each(sinalizadores)
+            FROM json_each(Catalogo.sinalizadores)
             WHERE json_extract(json_each.value, '$.codigo') IN (${quoteList(sinInclude)})
           )`
         );
+
+
       }
       if (sinExclude.length > 0) {
         parts.push(
           `NOT EXISTS (
             SELECT 1
-            FROM json_each(sinalizadores)
+            FROM json_each(Catalogo.sinalizadores)
             WHERE json_extract(json_each.value, '$.codigo') IN (${quoteList(sinExclude)})
           )`
         );
+
+
       }
 
       // --- "JÁ COMPROU" via TEMP (000) ---
@@ -272,9 +278,16 @@ export class FiltroService {
     }
 
     // ---------- FINAL ----------
-    const whereSql = andJoin(parts);
+    // Para evitar ambiguidade em queries que usam alias (tabelaPreco: tpp LEFT JOIN Catalogo c)
+    // geramos uma variante para 'tabela' qualificada com 'c.' nos casos de sinalizadores
+    const partsTabela = parts.map((p) => p.replace(/json_each\(Catalogo\.sinalizadores\)/g, 'json_each(c.sinalizadores)'));
+
+    const whereSqlCatalogo = andJoin(parts);
+    const whereSqlTabela = andJoin(partsTabela);
+
     console.warn("[CTX]", ctx)
-    console.warn("[whereSql]", whereSql)
-    return { catalogo: { whereSql }, tabela: { whereSql }, rawState: segments };
+    console.warn("[whereSqlCatalogo]", whereSqlCatalogo)
+    console.warn("[whereSqlTabela]", whereSqlTabela)
+    return { catalogo: { whereSql: whereSqlCatalogo }, tabela: { whereSql: whereSqlTabela }, rawState: segments };
   }
 }

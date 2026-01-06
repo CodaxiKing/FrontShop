@@ -26,6 +26,8 @@ interface Props {
   favKey?: number;
   isJaComprou?: (codigoProduto: string) => boolean;
   jaKey?: number;
+  onOpenLojasColigadas?: (produto: CatalogoItem) => void;
+  hasColigadas?: boolean;
 }
 
 const CardProdutoCatalogo: React.FC<Props> = ({
@@ -36,6 +38,8 @@ const CardProdutoCatalogo: React.FC<Props> = ({
   favKey,
   isJaComprou,
   jaKey,
+  onOpenLojasColigadas,
+  hasColigadas,
 }) => {
   const { isModoPaisagem, cardWidth } = useOrientation();
 
@@ -148,6 +152,9 @@ const CardProdutoCatalogo: React.FC<Props> = ({
         onOpenImageZoom={openImageModal}
         formatCurrency={formatCurrency}
         disableNavigate={disableNavigate}
+        // Chamador do evento de abrir lojas coligadas
+        onOpenLojasColigadas={() => onOpenLojasColigadas?.(produto)}
+        hasColigadas={hasColigadas}
       />
 
       {isImageModalVisible && (
